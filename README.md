@@ -77,7 +77,7 @@ bun run test
 ### Pre-commit Hooks (Husky)
 To ensure the repository remains stable, a git pre-commit hook is fully configured. 
 Whenever you run `git commit`, the system automatically runs:
-- `turbo run lint`: Type-checks all packages without emitting files (`tsc --noEmit`).
+- `turbo run typecheck`: Type-checks all packages without emitting files (`tsc --noEmit`).
 - `turbo run test`: Runs the test suites.
 
 If any of these fail, the commit is aborted.
@@ -107,7 +107,7 @@ packages/
 1. **Use Named Exports Only**: Avoid `export default` everywhere.
 2. **Compact Schemas**: Place all contract schemas inside `packages/shared`. Both `api` and `agents` depend on these definitions.
 3. **Provider Abstraction**: Do not embed LLM SDKs directly in the agents. Add them by creating a new file that satisfies the `LLMProvider` interface in `packages/agents/src/provider`.
-4. **Fast Feedback**: Run `bun run lint` at the root frequently to catch cross-package boundary errors early.
+4. **Fast Feedback**: Run `bun run typecheck` at the root frequently to catch cross-package boundary errors early.
 
 ---
 
