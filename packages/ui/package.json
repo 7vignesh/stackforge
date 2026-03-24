@@ -1,0 +1,11 @@
+{
+  "name": "@stackforge/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'ui: not implemented yet'",
+    "build": "echo 'ui: not implemented yet'",
+    "lint": "echo 'ui: not implemented yet'"
+  }
+}

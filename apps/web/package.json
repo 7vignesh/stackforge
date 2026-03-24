@@ -1,0 +1,14 @@
+{
+  "name": "@stackforge/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'web: not implemented yet'",
+    "build": "echo 'web: not implemented yet'",
+    "lint": "echo 'web: not implemented yet'"
+  },
+  "dependencies": {
+    "@stackforge/shared": "workspace:*"
+  }
+}

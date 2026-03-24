@@ -1,0 +1,11 @@
+{
+  "name": "@stackforge/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'config: not implemented yet'",
+    "build": "echo 'config: not implemented yet'",
+    "lint": "echo 'config: not implemented yet'"
+  }
+}
