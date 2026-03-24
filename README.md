@@ -28,7 +28,7 @@ Before you begin, ensure you have the following installed on your machine:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/stackforge.git
+   git clone https://github.com/7vignesh/stackforge.git
    cd stackforge
    ```
 
@@ -82,11 +82,7 @@ Whenever you run `git commit`, the system automatically runs:
 
 If any of these fail, the commit is aborted.
 
----
 
-## 🤝 Contributing
-
-We heavily utilize a monorepo setup to keep boundaries clean. Please adhere to the ownership domains below to minimize merge conflicts during development.
 
 ### Monorepo Structure & Ownership
 
@@ -102,13 +98,4 @@ packages/
   config/       # ESLint/TSConfig stubs
 ```
 
-### Development Guidelines
 
-1. **Use Named Exports Only**: Avoid `export default` everywhere.
-2. **Compact Schemas**: Place all contract schemas inside `packages/shared`. Both `api` and `agents` depend on these definitions.
-3. **Provider Abstraction**: Do not embed LLM SDKs directly in the agents. Add them by creating a new file that satisfies the `LLMProvider` interface in `packages/agents/src/provider`.
-4. **Fast Feedback**: Run `bun run typecheck` at the root frequently to catch cross-package boundary errors early.
-
----
-
-*Built for rapid AI scaffolding at hackathon speeds.* ⚡
