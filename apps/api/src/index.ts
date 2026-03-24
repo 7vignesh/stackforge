@@ -21,5 +21,6 @@ app.listen(Number(PORT), () => {
   console.log(`  POST /api/generate`);
   console.log(`  GET  /api/jobs/:jobId`);
   console.log(`  GET  /api/stream/:jobId`);
-  console.log(`  GET  /healthz`);
 });
+
+export { app };
