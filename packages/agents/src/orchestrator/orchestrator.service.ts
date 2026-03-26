@@ -35,6 +35,9 @@ function agentCompleted(
   agent: AgentName,
   durationMs: number,
   cached: boolean,
+  inputTokens: number,
+  outputTokens: number,
+  totalTokens: number,
   tokensUsed: number,
   estimatedInputTokens: number,
   compressionPasses: number,
@@ -50,6 +53,9 @@ function agentCompleted(
     payload: {
       durationMs,
       cached,
+      inputTokens,
+      outputTokens,
+      totalTokens,
       tokensUsed,
       estimatedInputTokens,
       compressionPasses,
@@ -72,6 +78,9 @@ async function runWithEmit<T>(
     output: T;
     cached: boolean;
     durationMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
     tokensUsed: number;
     estimatedInputTokens: number;
     compressionPasses: number;
@@ -89,6 +98,9 @@ async function runWithEmit<T>(
         agentName,
         result.durationMs,
         result.cached,
+        result.inputTokens,
+        result.outputTokens,
+        result.totalTokens,
         result.tokensUsed,
         result.estimatedInputTokens,
         result.compressionPasses,

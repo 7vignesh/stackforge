@@ -10,6 +10,9 @@ export type AgentRunResult<T> = {
   cached: boolean;
   durationMs: number;
   tokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
   estimatedInputTokens: number;
   compressionPasses: number;
   providerInputTokens: number;
@@ -33,6 +36,9 @@ export async function runAgent<TInput, TOutput>(
       cached: true,
       durationMs: 0,
       tokensUsed: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
       estimatedInputTokens: 0,
       compressionPasses: 0,
       providerInputTokens: 0,
@@ -67,6 +73,9 @@ export async function runAgent<TInput, TOutput>(
     cached: false,
     durationMs,
     tokensUsed: response.tokensUsed,
+    inputTokens: response.inputTokens ?? optimized.estimatedInputTokens,
+    outputTokens: response.outputTokens ?? optimized.maxOutputTokens,
+    totalTokens: response.tokensUsed,
     estimatedInputTokens: optimized.estimatedInputTokens,
     compressionPasses: optimized.compressionPasses,
     providerInputTokens: response.inputTokens ?? optimized.estimatedInputTokens,

@@ -1,7 +1,23 @@
 import type { Request, Response, NextFunction } from "express";
 import { JobIdParamSchema, JOB_STATUS } from "@stackforge/shared";
-import { getJob } from "../store/job.store.js";
+import { getJob, listJobs, summarizeJobTokenUsage } from "../store/job.store.js";
 import { subscribe, unsubscribe } from "../services/sse.service.js";
+
+export function listJobsController(_req: Request, res: Response): void {
+  const jobs = listJobs().map((job) => ({
+    id: job.id,
+    status: job.status,
+    projectName: job.projectName,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    completedAt: job.completedAt,
+    agentsCompleted: job.agentsCompleted,
+    error: job.error,
+    tokenUsage: summarizeJobTokenUsage(job),
+  }));
+
+  res.json({ jobs });
+}
 
 export function getJobController(req: Request, res: Response, next: NextFunction): void {
   const parsed = JobIdParamSchema.safeParse(req.params);
@@ -26,6 +42,7 @@ export function getJobController(req: Request, res: Response, next: NextFunction
     agentsCompleted: job.agentsCompleted,
     error: job.error,
     blueprint: job.blueprint,
+    tokenUsage: summarizeJobTokenUsage(job),
   });
 }
 
