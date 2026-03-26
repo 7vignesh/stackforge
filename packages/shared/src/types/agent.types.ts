@@ -20,8 +20,10 @@ export type AgentConfig = {
   model: string;
   maxInputTokens: number;
   maxOutputTokens: number;
+  minOutputTokens: number;
   temperature: number;
   compressionLevel: "low" | "medium" | "high";
+  budgetOverflowRetries: number;
   retries: number;
 };
 
