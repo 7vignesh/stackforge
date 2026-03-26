@@ -1,5 +1,6 @@
 import type { AgentName } from "@stackforge/shared";
 import { AGENT_CONFIGS } from "../config/agent.configs.js";
+import { buildAgentPrompt } from "../agents/prompts/index.js";
 
 export type OptimizedAgentPayload = {
   optimizedInput: unknown;
@@ -11,15 +12,6 @@ export type OptimizedAgentPayload = {
   temperature: number;
   estimatedInputTokens: number;
   compressionPasses: number;
-};
-
-const AGENT_REQUIREMENTS: Record<AgentName, string> = {
-  planner: "Return only JSON with keys: projectName, stack, folderStructure.",
-  schema: "Return only JSON with keys: entities, relationships.",
-  api: "Return only JSON with key: routePlan.",
-  frontend: "Return only JSON with key: frontendPages.",
-  devops: "Return only JSON with keys: infraPlan, generatedFilesPlan.",
-  reviewer: "Return only JSON with key: reviewerNotes.",
 };
 
 function estimateTokens(text: string): number {
@@ -176,10 +168,12 @@ export function optimizeAgentPayload(agentName: AgentName, input: unknown): Opti
 
   const cappedOutputTokens = Math.min(config.maxOutputTokens, remainingBudget);
 
+  const prompt = buildAgentPrompt(agentName, selectedInput);
+
   return {
     optimizedInput: selectedInput,
-    systemPrompt: `You are the ${agentName} agent for StackForge. ${AGENT_REQUIREMENTS[agentName]} Never include markdown, code fences, or explanatory text.`,
-    userPrompt: selectedPrompt,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.userPrompt,
     model: config.model,
     maxInputTokens: config.maxInputTokens,
     maxOutputTokens: cappedOutputTokens,
