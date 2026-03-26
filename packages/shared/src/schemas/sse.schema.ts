@@ -26,6 +26,15 @@ export const AgentCompletedEventSchema = SSEBaseSchema.extend({
   payload: z.object({
     durationMs: z.number(),
     cached: z.boolean(),
+    inputTokens: z.number(),
+    outputTokens: z.number(),
+    totalTokens: z.number(),
+    tokensUsed: z.number(),
+    estimatedInputTokens: z.number(),
+    compressionPasses: z.number(),
+    providerInputTokens: z.number(),
+    providerOutputTokens: z.number(),
+    model: z.string(),
   }),
 });
 

@@ -30,8 +30,40 @@ function agentStarted(jobId: string, agent: AgentName): SSEEvent {
   return { type: "agent_started", jobId, agent, timestamp: now(), payload: {} };
 }
 
-function agentCompleted(jobId: string, agent: AgentName, durationMs: number, cached: boolean): SSEEvent {
-  return { type: "agent_completed", jobId, agent, timestamp: now(), payload: { durationMs, cached } };
+function agentCompleted(
+  jobId: string,
+  agent: AgentName,
+  durationMs: number,
+  cached: boolean,
+  inputTokens: number,
+  outputTokens: number,
+  totalTokens: number,
+  tokensUsed: number,
+  estimatedInputTokens: number,
+  compressionPasses: number,
+  providerInputTokens: number,
+  providerOutputTokens: number,
+  model: string,
+): SSEEvent {
+  return {
+    type: "agent_completed",
+    jobId,
+    agent,
+    timestamp: now(),
+    payload: {
+      durationMs,
+      cached,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      tokensUsed,
+      estimatedInputTokens,
+      compressionPasses,
+      providerInputTokens,
+      providerOutputTokens,
+      model,
+    },
+  };
 }
 
 function agentFailed(jobId: string, agent: AgentName, error: string): SSEEvent {
@@ -42,12 +74,41 @@ async function runWithEmit<T>(
   jobId: string,
   agentName: AgentName,
   emit: (event: SSEEvent) => void,
-  fn: () => Promise<{ output: T; cached: boolean; durationMs: number }>,
+  fn: () => Promise<{
+    output: T;
+    cached: boolean;
+    durationMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    tokensUsed: number;
+    estimatedInputTokens: number;
+    compressionPasses: number;
+    providerInputTokens: number;
+    providerOutputTokens: number;
+    model: string;
+  }>,
 ): Promise<T> {
   emit(agentStarted(jobId, agentName));
   try {
     const result = await fn();
-    emit(agentCompleted(jobId, agentName, result.durationMs, result.cached));
+    emit(
+      agentCompleted(
+        jobId,
+        agentName,
+        result.durationMs,
+        result.cached,
+        result.inputTokens,
+        result.outputTokens,
+        result.totalTokens,
+        result.tokensUsed,
+        result.estimatedInputTokens,
+        result.compressionPasses,
+        result.providerInputTokens,
+        result.providerOutputTokens,
+        result.model,
+      ),
+    );
     return result.output;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

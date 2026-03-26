@@ -5,6 +5,8 @@ Users enter a product idea in plain English, and the system coordinates multiple
 
 Currently, this repository contains the **Core Backend & Orchestration Layer** (v1), which features a clean provider abstraction, strict Zod validation, and real-time Server-Sent Events (SSE) streaming for agent progress.
 
+The backend now runs on **real OpenRouter provider calls** with per-agent token optimization (input compression, output caps, and budget guardrails).
+
 ---
 
 ## 🚀 Tech Stack & Tools Needed
@@ -92,10 +94,73 @@ apps/
   web/          # Frontend Web App (React/Next.js stub) 
 
 packages/
-  agents/       # Core Orchestration, 6 Subagents, and LLM Provider mock
+   agents/       # Core Orchestration, 6 Subagents, OpenRouter provider, token optimizer
   shared/       # Zod Schemas, Constant Enums, and TS Contract Types
   ui/           # Reusable UI primitives stub
   config/       # ESLint/TSConfig stubs
 ```
+
+---
+
+## ⚙️ OpenRouter Runtime Configuration
+
+Set these variables in `apps/api/.env`:
+
+```bash
+OPENROUTER_API_KEY=your_key_here
+OPENROUTER_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
+OPENROUTER_APP_NAME=stackforge-api
+OPENROUTER_APP_URL=http://localhost:3001
+```
+
+---
+
+## 📉 Token Tuning Guide
+
+Per-agent tuning lives in `packages/agents/src/config/agent.configs.ts`.
+
+- `maxInputTokens`: hard input cap used by optimizer compression.
+- `maxOutputTokens`: maximum completion tokens requested from provider.
+- `minOutputTokens`: minimum output budget required after compression.
+- `tokenBudget`: total budget target used to derive dynamic output caps.
+- `compressionLevel`: default compression aggressiveness (`low` / `medium` / `high`).
+- `budgetOverflowRetries`: number of extra compression passes before fail-fast.
+
+**Suggested workflow:**
+1. Run 3–5 representative prompts.
+2. Inspect per-agent SSE `agent_completed` telemetry.
+3. Lower `maxInputTokens` or raise `compressionLevel` for agents with high `inputTokens`.
+4. Lower `maxOutputTokens` for agents with consistently low `outputTokens`.
+5. Raise `minOutputTokens` only if quality drops from over-compression.
+
+---
+
+## 📡 SSE Agent Telemetry
+
+Each `agent_completed` event includes token and optimizer metrics:
+
+```json
+{
+   "type": "agent_completed",
+   "agent": "schema",
+   "payload": {
+      "durationMs": 842,
+      "cached": false,
+      "inputTokens": 612,
+      "outputTokens": 431,
+      "totalTokens": 1043,
+      "tokensUsed": 1043,
+      "estimatedInputTokens": 590,
+      "compressionPasses": 2,
+      "providerInputTokens": 612,
+      "providerOutputTokens": 431,
+      "model": "openai/gpt-4o-mini"
+   }
+}
+```
+
+Per-job aggregates are available in REST responses:
+- `GET /api/jobs` returns all jobs with `tokenUsage` summaries.
+- `GET /api/jobs/:jobId` includes the same `tokenUsage` object for a single run.
 
 

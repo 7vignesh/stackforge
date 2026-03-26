@@ -1,7 +1,7 @@
 import type { SSEEvent, AgentName } from "@stackforge/shared";
 
 import { JOB_STATUS } from "@stackforge/shared";
-import { MockProvider, AgentCache, runOrchestrator } from "@stackforge/agents";
+import { OpenRouterProvider, AgentCache, runOrchestrator } from "@stackforge/agents";
 import {
   createJob,
   getJob,
@@ -11,7 +11,36 @@ import {
 } from "../store/job.store.js";
 import { broadcast, closeJobClients } from "./sse.service.js";
 
-const provider = new MockProvider();
+function readEnv(name: string): string {
+  const value = process.env[name];
+  if (value === undefined || value.trim().length === 0) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function buildProvider(): OpenRouterProvider {
+  const endpoint = process.env["OPENROUTER_ENDPOINT"];
+  const options = {
+    apiKey: readEnv("OPENROUTER_API_KEY"),
+    appName: process.env["OPENROUTER_APP_NAME"] ?? "stackforge-api",
+    appUrl: process.env["OPENROUTER_APP_URL"] ?? "http://localhost",
+    ...(endpoint !== undefined && endpoint.trim().length > 0 ? { endpoint } : {}),
+  };
+
+  return new OpenRouterProvider(options);
+}
+
+let provider: OpenRouterProvider | undefined;
+
+function getProvider(): OpenRouterProvider {
+  if (provider === undefined) {
+    provider = buildProvider();
+  }
+
+  return provider;
+}
+
 const cache = new AgentCache();
 
 function buildEmitter(jobId: string): (event: SSEEvent) => void {
@@ -41,7 +70,14 @@ async function startOrchestration(
   try {
     updateJob(jobId, { status: JOB_STATUS.RUNNING });
 
-    const blueprint = await runOrchestrator({ jobId, prompt, projectName, emit, provider, cache });
+    const blueprint = await runOrchestrator({
+      jobId,
+      prompt,
+      projectName,
+      emit,
+      provider: getProvider(),
+      cache,
+    });
 
     const now = new Date().toISOString();
     updateJob(jobId, { status: JOB_STATUS.COMPLETED, blueprint, completedAt: now });

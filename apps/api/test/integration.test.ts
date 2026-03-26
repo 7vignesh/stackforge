@@ -51,6 +51,17 @@ describe("StackForge API Integration", () => {
     expect(jobRes.status).toBe(200);
     const jobData = await jobRes.json();
     expect(jobData.id).toBe(data.jobId);
-    expect(["queued", "running", "completed"]).toContain(jobData.status);
+    expect(["queued", "running", "completed", "failed"]).toContain(jobData.status);
+    expect(jobData.tokenUsage).toBeDefined();
+    expect(typeof jobData.tokenUsage.totalTokens).toBe("number");
+
+    const jobsRes = await fetch(`${baseUrl}/api/jobs`);
+    expect(jobsRes.status).toBe(200);
+    const jobsData = await jobsRes.json();
+    expect(Array.isArray(jobsData.jobs)).toBe(true);
+    const createdJob = jobsData.jobs.find((job: { id: string }) => job.id === data.jobId);
+    expect(createdJob).toBeDefined();
+    expect(createdJob.tokenUsage).toBeDefined();
+    expect(typeof createdJob.tokenUsage.totalTokens).toBe("number");
   });
 });
