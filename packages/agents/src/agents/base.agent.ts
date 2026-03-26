@@ -10,6 +10,11 @@ export type AgentRunResult<T> = {
   cached: boolean;
   durationMs: number;
   tokensUsed: number;
+  estimatedInputTokens: number;
+  compressionPasses: number;
+  providerInputTokens: number;
+  providerOutputTokens: number;
+  model: string;
 };
 
 export async function runAgent<TInput, TOutput>(
@@ -28,6 +33,11 @@ export async function runAgent<TInput, TOutput>(
       cached: true,
       durationMs: 0,
       tokensUsed: 0,
+      estimatedInputTokens: 0,
+      compressionPasses: 0,
+      providerInputTokens: 0,
+      providerOutputTokens: 0,
+      model: "cache",
     };
   }
 
@@ -57,5 +67,10 @@ export async function runAgent<TInput, TOutput>(
     cached: false,
     durationMs,
     tokensUsed: response.tokensUsed,
+    estimatedInputTokens: optimized.estimatedInputTokens,
+    compressionPasses: optimized.compressionPasses,
+    providerInputTokens: response.inputTokens ?? optimized.estimatedInputTokens,
+    providerOutputTokens: response.outputTokens ?? optimized.maxOutputTokens,
+    model: response.model ?? optimized.model,
   };
 }

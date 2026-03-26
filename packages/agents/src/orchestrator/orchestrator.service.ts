@@ -36,13 +36,27 @@ function agentCompleted(
   durationMs: number,
   cached: boolean,
   tokensUsed: number,
+  estimatedInputTokens: number,
+  compressionPasses: number,
+  providerInputTokens: number,
+  providerOutputTokens: number,
+  model: string,
 ): SSEEvent {
   return {
     type: "agent_completed",
     jobId,
     agent,
     timestamp: now(),
-    payload: { durationMs, cached, tokensUsed },
+    payload: {
+      durationMs,
+      cached,
+      tokensUsed,
+      estimatedInputTokens,
+      compressionPasses,
+      providerInputTokens,
+      providerOutputTokens,
+      model,
+    },
   };
 }
 
@@ -54,12 +68,35 @@ async function runWithEmit<T>(
   jobId: string,
   agentName: AgentName,
   emit: (event: SSEEvent) => void,
-  fn: () => Promise<{ output: T; cached: boolean; durationMs: number; tokensUsed: number }>,
+  fn: () => Promise<{
+    output: T;
+    cached: boolean;
+    durationMs: number;
+    tokensUsed: number;
+    estimatedInputTokens: number;
+    compressionPasses: number;
+    providerInputTokens: number;
+    providerOutputTokens: number;
+    model: string;
+  }>,
 ): Promise<T> {
   emit(agentStarted(jobId, agentName));
   try {
     const result = await fn();
-    emit(agentCompleted(jobId, agentName, result.durationMs, result.cached, result.tokensUsed));
+    emit(
+      agentCompleted(
+        jobId,
+        agentName,
+        result.durationMs,
+        result.cached,
+        result.tokensUsed,
+        result.estimatedInputTokens,
+        result.compressionPasses,
+        result.providerInputTokens,
+        result.providerOutputTokens,
+        result.model,
+      ),
+    );
     return result.output;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
