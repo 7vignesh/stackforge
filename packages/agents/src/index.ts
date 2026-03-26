@@ -1,12 +1,17 @@
 // provider
-export type { LLMProvider, ProviderCallInput, ProviderCallOutput } from "./provider/provider.interface.js";
+export type { LLMProvider, ProviderCallInput, ProviderCallOutput, ProviderCallOptions } from "./provider/provider.interface.js";
 export { MockProvider } from "./provider/mock.provider.js";
+export { OpenRouterProvider } from "./provider/openrouter.provider.js";
+export type { OpenRouterProviderOptions } from "./provider/openrouter.provider.js";
 
 // cache
 export { AgentCache } from "./cache/agent.cache.js";
 
 // config
 export { AGENT_CONFIGS } from "./config/agent.configs.js";
+
+// optimizer
+export { optimizeAgentPayload } from "./optimizer/token.optimizer.js";
 
 // base
 export type { AgentRunResult } from "./agents/base.agent.js";

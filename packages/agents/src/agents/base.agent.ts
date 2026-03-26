@@ -1,6 +1,8 @@
 import type { AgentName } from "@stackforge/shared";
 import type { LLMProvider } from "../provider/provider.interface.js";
 import type { AgentCache } from "../cache/agent.cache.js";
+import { optimizeAgentPayload } from "../optimizer/token.optimizer.js";
+import { AgentOutputSchemas } from "./output.schemas.js";
 
 export type AgentRunResult<T> = {
   agentName: AgentName;
@@ -30,14 +32,28 @@ export async function runAgent<TInput, TOutput>(
   }
 
   const start = Date.now();
-  const response = await provider.call({ agentName, input });
+  const optimized = optimizeAgentPayload(agentName, input);
+  const response = await provider.call({
+    agentName,
+    input: optimized.optimizedInput,
+    options: {
+      systemPrompt: optimized.systemPrompt,
+      userPrompt: optimized.userPrompt,
+      model: optimized.model,
+      maxInputTokens: optimized.maxInputTokens,
+      maxOutputTokens: optimized.maxOutputTokens,
+      temperature: optimized.temperature,
+    },
+  });
   const durationMs = Date.now() - start;
+  const schema = AgentOutputSchemas[agentName];
+  const validatedOutput = schema.parse(response.output);
 
-  cache.set(cacheKey, response.output);
+  cache.set(cacheKey, validatedOutput);
 
   return {
     agentName,
-    output: response.output as TOutput,
+    output: validatedOutput as TOutput,
     cached: false,
     durationMs,
     tokensUsed: response.tokensUsed,

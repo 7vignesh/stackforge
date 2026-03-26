@@ -30,8 +30,20 @@ function agentStarted(jobId: string, agent: AgentName): SSEEvent {
   return { type: "agent_started", jobId, agent, timestamp: now(), payload: {} };
 }
 
-function agentCompleted(jobId: string, agent: AgentName, durationMs: number, cached: boolean): SSEEvent {
-  return { type: "agent_completed", jobId, agent, timestamp: now(), payload: { durationMs, cached } };
+function agentCompleted(
+  jobId: string,
+  agent: AgentName,
+  durationMs: number,
+  cached: boolean,
+  tokensUsed: number,
+): SSEEvent {
+  return {
+    type: "agent_completed",
+    jobId,
+    agent,
+    timestamp: now(),
+    payload: { durationMs, cached, tokensUsed },
+  };
 }
 
 function agentFailed(jobId: string, agent: AgentName, error: string): SSEEvent {
@@ -42,12 +54,12 @@ async function runWithEmit<T>(
   jobId: string,
   agentName: AgentName,
   emit: (event: SSEEvent) => void,
-  fn: () => Promise<{ output: T; cached: boolean; durationMs: number }>,
+  fn: () => Promise<{ output: T; cached: boolean; durationMs: number; tokensUsed: number }>,
 ): Promise<T> {
   emit(agentStarted(jobId, agentName));
   try {
     const result = await fn();
-    emit(agentCompleted(jobId, agentName, result.durationMs, result.cached));
+    emit(agentCompleted(jobId, agentName, result.durationMs, result.cached, result.tokensUsed));
     return result.output;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
