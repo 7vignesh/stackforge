@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { describe, it, expect } from "bun:test";
+import { encodingForModel } from "js-tiktoken";
 import { optimizeAgentPayload } from "../src/optimizer/token.optimizer.js";
 import { AGENT_CONFIGS } from "../src/config/agent.configs.js";
 
@@ -15,7 +16,45 @@ describe("Token optimizer", () => {
     expect(result.maxInputTokens).toBe(900);
     expect(result.estimatedInputTokens).toBeLessThanOrEqual(result.maxInputTokens);
     expect(result.compressionPasses).toBeGreaterThanOrEqual(1);
-    expect(result.userPrompt.length).toBeLessThanOrEqual(result.maxInputTokens * 4);
+
+    const tokenizer = encodingForModel("gpt-4o-mini");
+    const measuredTokens =
+      tokenizer.encode(result.systemPrompt).length +
+      tokenizer.encode(result.userPrompt).length +
+      20;
+    expect(measuredTokens).toBeLessThanOrEqual(result.maxInputTokens);
+  });
+
+  it("recursively compresses nested arrays and objects", () => {
+    const hugeEntities = Array.from({ length: 28 }, (_, entityIndex) => ({
+      name: `Entity${entityIndex}`,
+      tableName: `entity_${entityIndex}`,
+      fields: Array.from({ length: 24 }, (_, fieldIndex) => ({
+        name: `field_${fieldIndex}`,
+        type: "varchar(255)",
+        description: "x".repeat(180),
+        nullable: fieldIndex % 2 === 0,
+      })),
+      description: "This is a large entity description that repeats. ".repeat(24),
+    }));
+
+    const result = optimizeAgentPayload("reviewer", {
+      prompt: "Review this architecture for consistency and security.",
+      projectName: "compress-test",
+      stack: { frontend: "react", backend: "express", database: "postgres" },
+      entities: hugeEntities,
+      relationships: [],
+      routePlan: [],
+      frontendPages: [],
+      infraPlan: { ci: ["test"], docker: true, deployment: ["railway"], envVars: ["DATABASE_URL"] },
+      generatedFilesPlan: [],
+    });
+
+    const optimized = result.optimizedInput as { entities?: Array<{ fields?: unknown[] }> };
+    expect(Array.isArray(optimized.entities)).toBe(true);
+    expect((optimized.entities ?? []).length).toBeLessThanOrEqual(12);
+    expect(((optimized.entities ?? [])[0]?.fields ?? []).length).toBeLessThanOrEqual(12);
+    expect(result.estimatedInputTokens).toBeLessThanOrEqual(result.maxInputTokens);
   });
 
   it("fails fast when remaining budget cannot satisfy minimum output tokens", () => {
