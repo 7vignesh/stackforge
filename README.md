@@ -107,11 +107,20 @@ packages/
 Set these variables in `apps/api/.env`:
 
 ```bash
+STACKFORGE_PROVIDER=openrouter
 OPENROUTER_API_KEY=your_key_here
 OPENROUTER_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
 OPENROUTER_APP_NAME=stackforge-api
 OPENROUTER_APP_URL=http://localhost:3001
 ```
+
+`STACKFORGE_PROVIDER` supports:
+- `openrouter`: forces real LLM execution (requires `OPENROUTER_API_KEY`)
+- `mock`: forces deterministic offline agent responses
+- omitted/`auto`: uses `openrouter` when API key is present, otherwise `mock`
+
+Runtime/provider health is exposed at:
+- `GET /api/runtime`
 
 ---
 
