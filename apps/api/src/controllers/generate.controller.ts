@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { GenerateRequestSchema } from "@stackforge/shared";
-import { generateProject } from "../services/generate.service.js";
+import { generateProject, getRuntimeStatus } from "../services/generate.service.js";
 
 export function generateController(req: Request, res: Response, next: NextFunction): void {
   const parsed = GenerateRequestSchema.safeParse(req.body);
@@ -12,6 +12,15 @@ export function generateController(req: Request, res: Response, next: NextFuncti
 
   const { prompt, projectName } = parsed.data;
   const resolvedName = projectName ?? prompt.slice(0, 40).replace(/\s+/g, "-").toLowerCase();
+  const runtime = getRuntimeStatus();
+
+  if (!runtime.ready) {
+    res.status(503).json({
+      error: runtime.reason ?? "LLM provider is not configured",
+      provider: runtime.provider,
+    });
+    return;
+  }
 
   try {
     const job = generateProject(prompt, resolvedName);

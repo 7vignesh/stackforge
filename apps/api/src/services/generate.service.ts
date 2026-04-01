@@ -1,7 +1,13 @@
 import type { SSEEvent, AgentName } from "@stackforge/shared";
 
 import { JOB_STATUS } from "@stackforge/shared";
-import { OpenRouterProvider, AgentCache, runOrchestrator } from "@stackforge/agents";
+import {
+  OpenRouterProvider,
+  MockProvider,
+  AgentCache,
+  runOrchestrator,
+  type LLMProvider,
+} from "@stackforge/agents";
 import {
   createJob,
   getJob,
@@ -11,6 +17,29 @@ import {
 } from "../store/job.store.js";
 import { broadcast, closeJobClients } from "./sse.service.js";
 
+type ProviderMode = "openrouter" | "mock";
+
+export type RuntimeStatus = {
+  provider: ProviderMode;
+  ready: boolean;
+  reason?: string;
+};
+
+function resolveProviderMode(): ProviderMode {
+  const configured = (process.env["STACKFORGE_PROVIDER"] ?? "auto").trim().toLowerCase();
+
+  if (configured === "openrouter") {
+    return "openrouter";
+  }
+
+  if (configured === "mock") {
+    return "mock";
+  }
+
+  const hasOpenRouterKey = (process.env["OPENROUTER_API_KEY"] ?? "").trim().length > 0;
+  return hasOpenRouterKey ? "openrouter" : "mock";
+}
+
 function readEnv(name: string): string {
   const value = process.env[name];
   if (value === undefined || value.trim().length === 0) {
@@ -19,7 +48,7 @@ function readEnv(name: string): string {
   return value;
 }
 
-function buildProvider(): OpenRouterProvider {
+function buildOpenRouterProvider(): OpenRouterProvider {
   const endpoint = process.env["OPENROUTER_ENDPOINT"];
   const options = {
     apiKey: readEnv("OPENROUTER_API_KEY"),
@@ -31,14 +60,36 @@ function buildProvider(): OpenRouterProvider {
   return new OpenRouterProvider(options);
 }
 
-let provider: OpenRouterProvider | undefined;
+function buildProvider(mode: ProviderMode): LLMProvider {
+  if (mode === "mock") {
+    return new MockProvider();
+  }
 
-function getProvider(): OpenRouterProvider {
+  return buildOpenRouterProvider();
+}
+
+let provider: LLMProvider | undefined;
+let providerMode: ProviderMode | undefined;
+
+function getProvider(): LLMProvider {
   if (provider === undefined) {
-    provider = buildProvider();
+    providerMode = resolveProviderMode();
+    provider = buildProvider(providerMode);
   }
 
   return provider;
+}
+
+export function getRuntimeStatus(): RuntimeStatus {
+  const mode = providerMode ?? resolveProviderMode();
+
+  try {
+    void getProvider();
+    return { provider: mode, ready: true };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { provider: mode, ready: false, reason };
+  }
 }
 
 const cache = new AgentCache();
