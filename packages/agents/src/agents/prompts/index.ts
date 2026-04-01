@@ -59,8 +59,12 @@ const CONTEXT_KEYS: Record<AgentName, string[]> = {
   ],
 };
 
+export function extractAgentContext(agentName: AgentName, input: unknown): Record<string, unknown> {
+  return pick(input, CONTEXT_KEYS[agentName]);
+}
+
 export function buildAgentPrompt(agentName: AgentName, input: unknown): AgentPrompt {
-  const context = pick(input, CONTEXT_KEYS[agentName]);
+  const context = extractAgentContext(agentName, input);
 
   return {
     systemPrompt:

@@ -18,7 +18,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@stackforge/shared": "workspace:*"
+    "@stackforge/shared": "workspace:*",
+    "js-tiktoken": "^1.0.21"
   },
   "devDependencies": {
     "@types/bun": "^1.3.11",
