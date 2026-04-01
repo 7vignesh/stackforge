@@ -8,6 +8,18 @@ const PORT = process.env["PORT"] ?? "3001";
 
 app.use(express.json());
 
+// CORS for Vite dev server
+app.use((_req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (_req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.get("/healthz", (_req, res) => {
   res.json({ status: "ok", service: "stackforge-api", ts: new Date().toISOString() });
 });

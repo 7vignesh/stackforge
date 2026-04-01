@@ -1,7 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import { JobIdParamSchema, JOB_STATUS } from "@stackforge/shared";
 import { getJob, listJobs, summarizeJobTokenUsage } from "../store/job.store.js";
+import { getRuntimeStatus } from "../services/generate.service.js";
 import { subscribe, unsubscribe } from "../services/sse.service.js";
+
+export function runtimeController(_req: Request, res: Response): void {
+  const runtime = getRuntimeStatus();
+  res.status(runtime.ready ? 200 : 503).json(runtime);
+}
 
 export function listJobsController(_req: Request, res: Response): void {
   const jobs = listJobs().map((job) => ({
