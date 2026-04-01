@@ -4,11 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo 'web: not implemented yet'",
-    "build": "echo 'web: not implemented yet'",
-    "lint": "echo 'web: not implemented yet'"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@stackforge/shared": "workspace:*"
+    "@stackforge/ui": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
   }
 }
