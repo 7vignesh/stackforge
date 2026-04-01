@@ -28,6 +28,15 @@ describe("StackForge API Integration", () => {
     expect(json.error).toBe("Validation failed");
   });
 
+  it("should return runtime provider status", async () => {
+    const res = await fetch(`${baseUrl}/api/runtime`);
+    expect([200, 503]).toContain(res.status);
+
+    const data = await res.json();
+    expect(["openrouter", "mock"]).toContain(data.provider);
+    expect(typeof data.ready).toBe("boolean");
+  });
+
   it("should create a job and return 202 accepted", async () => {
     const res = await fetch(`${baseUrl}/api/generate`, {
       method: "POST",
