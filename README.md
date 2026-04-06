@@ -5,7 +5,7 @@ Users enter a product idea in plain English, and the system coordinates multiple
 
 Currently, this repository contains the **Core Backend & Orchestration Layer** (v1), which features a clean provider abstraction, strict Zod validation, and real-time Server-Sent Events (SSE) streaming for agent progress.
 
-The backend now runs on **real OpenRouter provider calls** with per-agent token optimization (input compression, output caps, and budget guardrails).
+The backend runs on **real OpenRouter provider calls** with per-agent token optimization (input compression, output caps, and budget guardrails).
 
 ---
 
@@ -141,35 +141,4 @@ Per-agent tuning lives in `packages/agents/src/config/agent.configs.ts`.
 3. Lower `maxInputTokens` or raise `compressionLevel` for agents with high `inputTokens`.
 4. Lower `maxOutputTokens` for agents with consistently low `outputTokens`.
 5. Raise `minOutputTokens` only if quality drops from over-compression.
-
----
-
-## 📡 SSE Agent Telemetry
-
-Each `agent_completed` event includes token and optimizer metrics:
-
-```json
-{
-   "type": "agent_completed",
-   "agent": "schema",
-   "payload": {
-      "durationMs": 842,
-      "cached": false,
-      "inputTokens": 612,
-      "outputTokens": 431,
-      "totalTokens": 1043,
-      "tokensUsed": 1043,
-      "estimatedInputTokens": 590,
-      "compressionPasses": 2,
-      "providerInputTokens": 612,
-      "providerOutputTokens": 431,
-      "model": "openai/gpt-4o-mini"
-   }
-}
-```
-
-Per-job aggregates are available in REST responses:
-- `GET /api/jobs` returns all jobs with `tokenUsage` summaries.
-- `GET /api/jobs/:jobId` includes the same `tokenUsage` object for a single run.
-
-
+6. Adjust `tokenBudget` to set overall cost/quality tradeoff for the entire orchestration.
