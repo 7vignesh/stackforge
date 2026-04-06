@@ -68,4 +68,117 @@ describe("OpenRouterProvider", () => {
       }),
     ).rejects.toThrow("OpenRouter returned non-JSON content");
   });
+
+  it("recovers malformed JSON with trailing commas", async () => {
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{
+            message: {
+              content: "{\"infra\":{\"docker\":{\"enabled\":true,\"services\":[\"api\",\"web\",],},},}",
+            },
+          }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+
+    const provider = new OpenRouterProvider({ apiKey: "test-key" });
+
+    const result = await provider.call({
+      agentName: "devops",
+      input: { prompt: "build app", projectName: "acme" },
+      options: {
+        systemPrompt: "Return JSON",
+        userPrompt: "{}",
+        model: "openai/gpt-4o-mini",
+        maxInputTokens: 300,
+        maxOutputTokens: 300,
+        temperature: 0.1,
+      },
+    });
+
+    expect(result.output).toEqual({
+      infra: {
+        docker: {
+          enabled: true,
+          services: ["api", "web"],
+        },
+      },
+    });
+  });
+
+  it("extracts JSON from fenced output with trailing text", async () => {
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{
+            message: {
+              content: [
+                "```json",
+                "{\"ciCd\":{\"provider\":\"github-actions\"}}",
+                "```",
+                "this explanatory suffix should be ignored",
+              ].join("\n"),
+            },
+          }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+
+    const provider = new OpenRouterProvider({ apiKey: "test-key" });
+
+    const result = await provider.call({
+      agentName: "devops",
+      input: { prompt: "build app", projectName: "acme" },
+      options: {
+        systemPrompt: "Return JSON",
+        userPrompt: "{}",
+        model: "openai/gpt-4o-mini",
+        maxInputTokens: 300,
+        maxOutputTokens: 300,
+        temperature: 0.1,
+      },
+    });
+
+    expect(result.output).toEqual({
+      ciCd: {
+        provider: "github-actions",
+      },
+    });
+  });
+
+  it("extracts balanced JSON when output has trailing garbage", async () => {
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{
+            message: {
+              content: "prefix text {\"deployment\":{\"target\":\"render\"}} ) trailing noise",
+            },
+          }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+
+    const provider = new OpenRouterProvider({ apiKey: "test-key" });
+
+    const result = await provider.call({
+      agentName: "devops",
+      input: { prompt: "build app", projectName: "acme" },
+      options: {
+        systemPrompt: "Return JSON",
+        userPrompt: "{}",
+        model: "openai/gpt-4o-mini",
+        maxInputTokens: 300,
+        maxOutputTokens: 300,
+        temperature: 0.1,
+      },
+    });
+
+    expect(result.output).toEqual({
+      deployment: {
+        target: "render",
+      },
+    });
+  });
 });
