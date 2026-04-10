@@ -10,6 +10,7 @@ import {
   buildFrontendOutput,
   buildDevopsOutput,
   buildReviewerOutput,
+  buildCodegenOutput,
 } from "../src/provider/mock.data.js";
 
 function extractProjectName(input: unknown): string {
@@ -94,6 +95,15 @@ class PartialPlannerProvider implements LLMProvider {
       case "reviewer":
         return {
           output: buildReviewerOutput(),
+          tokensUsed: 100,
+          durationMs: 5,
+          inputTokens: 40,
+          outputTokens: 60,
+          model: options.model,
+        };
+      case "codegen":
+        return {
+          output: buildCodegenOutput(projectName),
           tokensUsed: 100,
           durationMs: 5,
           inputTokens: 40,

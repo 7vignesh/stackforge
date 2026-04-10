@@ -15,6 +15,11 @@ export type OptimizedAgentPayload = {
   compressionPasses: number;
 };
 
+export type RuntimeTokenConstraints = {
+  tokenBudgetLimit?: number;
+  maxOutputTokensLimit?: number;
+};
+
 const tokenizerCache = new Map<string, Tiktoken>();
 
 function normalizeModel(model: string): string {
@@ -149,6 +154,9 @@ const KEY_PRIORITY: Record<string, number> = {
   infraPlan: 92,
   generatedFilesPlan: 92,
   reviewerNotes: 92,
+  generatedSourceFiles: 92,
+  content: 88,
+  language: 84,
   name: 90,
   tableName: 88,
   fields: 88,
@@ -263,11 +271,35 @@ function buildMinimalContext(context: unknown, maxInputTokens: number): unknown 
   return minimal;
 }
 
-export function optimizeAgentPayload(agentName: AgentName, input: unknown): OptimizedAgentPayload {
+function normalizePositiveInt(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : undefined;
+}
+
+export function optimizeAgentPayload(
+  agentName: AgentName,
+  input: unknown,
+  constraints?: RuntimeTokenConstraints,
+): OptimizedAgentPayload {
   const config = AGENT_CONFIGS[agentName];
   const attempts = Math.max(1, config.budgetOverflowRetries + 1);
   const effectiveInputLimit = Math.max(64, config.maxInputTokens - 8);
+  const runtimeTokenBudget = normalizePositiveInt(constraints?.tokenBudgetLimit);
+  const effectiveTokenBudget = runtimeTokenBudget !== undefined
+    ? Math.min(config.tokenBudget, runtimeTokenBudget)
+    : config.tokenBudget;
+  const runtimeOutputLimit = normalizePositiveInt(constraints?.maxOutputTokensLimit);
   const context = extractAgentContext(agentName, input);
+
+  if (effectiveTokenBudget < config.minOutputTokens) {
+    throw new Error(
+      `Token budget too low for agent '${agentName}' (budget=${effectiveTokenBudget}, minOutput=${config.minOutputTokens})`,
+    );
+  }
 
   let selectedInput: unknown = context;
   let selectedPrompt = buildAgentPrompt(agentName, selectedInput);
@@ -322,14 +354,24 @@ export function optimizeAgentPayload(agentName: AgentName, input: unknown): Opti
     );
   }
 
-  const remainingBudget = config.tokenBudget - estimatedInputTokens;
+  const remainingBudget = effectiveTokenBudget - estimatedInputTokens;
   if (remainingBudget < config.minOutputTokens) {
     throw new Error(
       `Insufficient output token budget for agent '${agentName}' after compression`,
     );
   }
 
-  const cappedOutputTokens = Math.min(config.maxOutputTokens, remainingBudget);
+  const cappedOutputTokens = Math.min(
+    config.maxOutputTokens,
+    remainingBudget,
+    runtimeOutputLimit ?? Number.POSITIVE_INFINITY,
+  );
+
+  if (cappedOutputTokens < config.minOutputTokens) {
+    throw new Error(
+      `Insufficient capped output token budget for agent '${agentName}' after runtime limits`,
+    );
+  }
 
   return {
     optimizedInput: selectedInput,

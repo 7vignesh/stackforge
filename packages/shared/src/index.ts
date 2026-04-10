@@ -5,8 +5,20 @@ export { JOB_STATUS } from "./constants/job-status.js";
 export type { JobStatus } from "./constants/job-status.js";
 
 // generate schemas
-export { GenerateRequestSchema, JobIdParamSchema } from "./schemas/generate.schema.js";
-export type { GenerateRequest, JobIdParam } from "./schemas/generate.schema.js";
+export {
+  GenerateRequestSchema,
+  JobIdParamSchema,
+  BudgetEnforcementSchema,
+  TokenBudgetSchema,
+  GenerateExecutionSchema,
+} from "./schemas/generate.schema.js";
+export type {
+  GenerateRequest,
+  JobIdParam,
+  BudgetEnforcement,
+  TokenBudget,
+  GenerateExecution,
+} from "./schemas/generate.schema.js";
 
 // job schemas
 export { AgentNameSchema, JobStatusSchema, JobSchema } from "./schemas/job.schema.js";
@@ -53,6 +65,7 @@ export type {
   InfraPlan,
   GeneratedFile,
   ReviewerNote,
+  GeneratedSourceFile,
 } from "./schemas/blueprint.schema.js";
 
 // agent types
@@ -70,5 +83,7 @@ export type {
   DevopsOutput,
   ReviewerInput,
   ReviewerOutput,
+  CodegenInput,
+  CodegenOutput,
   AgentOutput,
 } from "./types/agent.types.js";

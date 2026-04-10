@@ -73,4 +73,21 @@ describe("Token optimizer", () => {
       AGENT_CONFIGS.devops.minOutputTokens = original;
     }
   });
+
+  it("respects runtime token constraints for per-request caps", () => {
+    const result = optimizeAgentPayload(
+      "planner",
+      {
+        prompt: "Build a collaborative kanban app with real-time updates and comments.",
+        projectName: "runtime-cap-test",
+      },
+      {
+        tokenBudgetLimit: 700,
+        maxOutputTokensLimit: 300,
+      },
+    );
+
+    expect(result.maxOutputTokens).toBeLessThanOrEqual(300);
+    expect(result.maxOutputTokens).toBeLessThanOrEqual(700 - result.estimatedInputTokens);
+  });
 });

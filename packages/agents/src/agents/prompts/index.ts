@@ -38,6 +38,8 @@ const SYSTEM_INSTRUCTIONS: Record<AgentName, string> = {
     "You are the devops agent. Plan deployable infra, env vars, and generated files. Respond with strict JSON only using exactly this shape: { infraPlan: { ci: string[], docker: boolean, deployment: string[], envVars: string[] }, generatedFilesPlan: Array<{ path: string, generator: string, description: string }> }. Never omit required keys and never use null or undefined.",
   reviewer:
     "You are the reviewer agent. Identify consistency, reliability, and security issues. Respond with strict JSON only using exactly this shape: { reviewerNotes: Array<{ severity: 'info' | 'warning' | 'error', agent: string, note: string }> }. Never omit required keys and never use null or undefined.",
+  codegen:
+    "You are the code generation agent. Produce real source files from the approved blueprint. Respond with strict JSON only using exactly this shape: { generatedSourceFiles: Array<{ path: string, content: string, language?: string }> }. Generate complete file contents with valid syntax, no placeholders like TODO, and keep file count focused (about 10-20 key files). Never omit required keys and never use null or undefined.",
 };
 
 const CONTEXT_KEYS: Record<AgentName, string[]> = {
@@ -56,6 +58,18 @@ const CONTEXT_KEYS: Record<AgentName, string[]> = {
     "frontendPages",
     "infraPlan",
     "generatedFilesPlan",
+  ],
+  codegen: [
+    "prompt",
+    "projectName",
+    "stack",
+    "entities",
+    "relationships",
+    "routePlan",
+    "frontendPages",
+    "infraPlan",
+    "generatedFilesPlan",
+    "reviewerNotes",
   ],
 };
 

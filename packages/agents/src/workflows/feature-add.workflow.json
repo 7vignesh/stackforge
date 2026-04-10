@@ -1,0 +1,47 @@
+{
+  "id": "feature-add",
+  "name": "Feature Add",
+  "description": "Adds a focused feature to an existing scaffold with bounded context.",
+  "steps": [
+    {
+      "id": "feature-step-1",
+      "skill": "project-planner",
+      "stateKey": "plan",
+      "compressionTarget": 130,
+      "emitEvent": "agent_started",
+      "agent": "planner"
+    },
+    {
+      "id": "feature-step-2",
+      "skill": "schema-generator",
+      "stateKey": "schema",
+      "compressionTarget": 130,
+      "emitEvent": "agent_started",
+      "agent": "schema"
+    },
+    {
+      "id": "feature-step-3",
+      "skill": "api-route-generator",
+      "stateKey": "api",
+      "compressionTarget": 120,
+      "emitEvent": "agent_started",
+      "agent": "api"
+    },
+    {
+      "id": "feature-step-4",
+      "skill": "component-generator",
+      "stateKey": "frontend",
+      "compressionTarget": 120,
+      "emitEvent": "agent_started",
+      "agent": "frontend"
+    },
+    {
+      "id": "feature-step-5",
+      "skill": "config-generator",
+      "stateKey": "devops",
+      "compressionTarget": 110,
+      "emitEvent": "agent_started",
+      "agent": "devops"
+    }
+  ]
+}
