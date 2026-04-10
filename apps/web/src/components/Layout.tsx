@@ -59,19 +59,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <NavLink to="/" active={location.pathname === "/"}>
             Home
           </NavLink>
-          <a
-            href="https://github.com/7vignesh/stackforge"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: "14px",
-              color: "#9898a8",
-              textDecoration: "none",
-              transition: "color 250ms",
-            }}
-          >
-            GitHub
-          </a>
         </div>
       </nav>
 
