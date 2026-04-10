@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, useToast } from "@stackforge/ui";
+import { useToast } from "@stackforge/ui";
 import { generateProject, getRuntime, type RuntimeResponse } from "../lib/api";
 
 const FRONTEND_OPTIONS = ["react", "vue", "svelte"] as const;
 const BACKEND_OPTIONS = ["express", "fastify", "hono"] as const;
 const DATABASE_OPTIONS = ["postgres", "mysql", "mongodb"] as const;
 
+const PARTICLE_COUNT = 45;
+
 export function Home() {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const particlesRef = useRef<HTMLDivElement | null>(null);
 
   const [prompt, setPrompt] = useState("");
   const [frontend, setFrontend] = useState("react");
@@ -34,6 +38,61 @@ export function Home() {
         setRuntime(null);
         setRuntimeError(err instanceof Error ? err.message : "Failed to load runtime status");
       });
+  }, []);
+
+  useEffect(() => {
+    const container = particlesRef.current;
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+      const particle = document.createElement("span");
+      particle.className = "sf-particle";
+
+      const depth = Math.random() * 2 + 0.5;
+      const size = Math.random() * 2 + 1;
+
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 85}%`;
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.opacity = `${Math.random() * 0.4 + 0.1}`;
+      particle.style.animationDuration = `${Math.random() * 4 + 2}s`;
+      particle.style.animationDelay = `${Math.random() * 2}s`;
+      particle.style.setProperty("--depth", `${depth}`);
+      container.appendChild(particle);
+    }
+
+    return () => {
+      container.innerHTML = "";
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+
+    const setFromPoint = (x: number, y: number) => {
+      const width = window.innerWidth || 1;
+      const height = window.innerHeight || 1;
+      const moveX = (x - width / 2) / (width / 2);
+      const moveY = (y - height / 2) / (height / 2);
+
+      root.style.setProperty("--cursor-x", `${x}px`);
+      root.style.setProperty("--cursor-y", `${y}px`);
+      root.style.setProperty("--parallax-x", `${-moveX * 40}px`);
+      root.style.setProperty("--parallax-y", `${-moveY * 40}px`);
+    };
+
+    setFromPoint(window.innerWidth / 2, window.innerHeight / 3);
+
+    const onMouseMove = (event: MouseEvent) => {
+      setFromPoint(event.clientX, event.clientY);
+    };
+
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    return () => window.removeEventListener("mousemove", onMouseMove);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -63,97 +122,94 @@ export function Home() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100vh - 140px)",
-        padding: "48px 24px",
-      }}
-    >
-      {/* Hero */}
-      <div
-        className="animate-fade-in"
-        style={{ textAlign: "center", marginBottom: "48px", maxWidth: "640px" }}
-      >
-        <h1
-          style={{
-            fontSize: "clamp(32px, 5vw, 56px)",
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.1,
-            marginBottom: "16px",
-          }}
-        >
-          Describe your idea.
-          <br />
-          <span
-            style={{
-              background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            We'll build the blueprint.
-          </span>
-        </h1>
-        <p style={{ fontSize: "17px", color: "#9898a8", lineHeight: 1.6 }}>
-          StackForge uses AI agents to plan your full-stack project — schema, APIs,
-          frontend pages, DevOps — all generated in seconds.
-        </p>
+    <div className="sf-home" ref={containerRef}>
+      <div className="sf-cursor-glow" aria-hidden="true" />
+
+      <div className="sf-hero-lighting sf-gsap-fade" aria-hidden="true">
+        <div className="sf-vertical-rays" />
+        <div className="sf-ambient-bloom" />
+
+        <div className="sf-arc-svg-container">
+          <svg width="100%" height="100%" viewBox="0 0 1400 600" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="core-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                <stop offset="35%" stopColor="rgba(255,255,255,0)" />
+                <stop offset="47%" stopColor="rgba(255,255,255,0.9)" />
+                <stop offset="50%" stopColor="rgba(255,255,255,1)" />
+                <stop offset="53%" stopColor="rgba(255,255,255,0.9)" />
+                <stop offset="65%" stopColor="rgba(255,255,255,0)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </linearGradient>
+
+              <linearGradient id="ambient-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(56,189,248,0)" />
+                <stop offset="25%" stopColor="rgba(56,189,248,0.1)" />
+                <stop offset="40%" stopColor="rgba(56,189,248,0.4)" />
+                <stop offset="50%" stopColor="rgba(186,230,253,0.7)" />
+                <stop offset="60%" stopColor="rgba(56,189,248,0.4)" />
+                <stop offset="75%" stopColor="rgba(56,189,248,0.1)" />
+                <stop offset="100%" stopColor="rgba(56,189,248,0)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 0 600 Q 700 80 1400 600"
+              fill="none"
+              stroke="url(#ambient-grad)"
+              strokeWidth="60"
+              filter="blur(35px)"
+              opacity="0.3"
+            />
+            <path
+              d="M 0 600 Q 700 80 1400 600"
+              fill="none"
+              stroke="url(#ambient-grad)"
+              strokeWidth="15"
+              filter="blur(8px)"
+              opacity="0.6"
+            />
+            <path d="M 0 600 Q 700 80 1400 600" fill="none" stroke="url(#core-glow)" strokeWidth="2" />
+          </svg>
+        </div>
+        <div className="sf-core-flare" />
       </div>
 
-      {/* Form */}
-      <Card
-        glow
-        style={{
-          width: "100%",
-          maxWidth: "640px",
-          padding: "32px",
-        }}
-      >
-        <form onSubmit={handleSubmit}>
-          {/* Prompt textarea */}
-          <label
-            htmlFor="prompt-input"
-            style={{ display: "block", fontSize: "13px", color: "#9898a8", marginBottom: "8px", fontWeight: 500 }}
-          >
-            Project description
-          </label>
-          <textarea
-            id="prompt-input"
-            placeholder="e.g. A SaaS platform for managing freelancer invoices with user auth, Stripe payments, and a dashboard..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={4}
-            style={{
-              width: "100%",
-              padding: "14px 16px",
-              fontSize: "15px",
-              fontFamily: "'Inter', system-ui, sans-serif",
-              background: "#1a1a26",
-              border: "1px solid #23232f",
-              borderRadius: "12px",
-              color: "#f0f0f5",
-              resize: "vertical",
-              lineHeight: 1.5,
-              transition: "border-color 250ms",
-              outline: "none",
-              minHeight: "100px",
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "#6366f1")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "#23232f")}
-          />
-          {prompt.length > 0 && prompt.trim().length < 10 && (
-            <p style={{ fontSize: "12px", color: "#f43f5e", marginTop: "6px" }}>
-              Please enter at least 10 characters
-            </p>
-          )}
+      <div ref={particlesRef} className="sf-particles" aria-hidden="true" />
 
-          {/* Stack preferences */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "24px" }}>
+      <main className="sf-hero">
+        <h1 className="sf-gsap-anim">
+          Describe your idea.
+          <br />
+          <span className="sf-gradient-text">We&apos;ll build the blueprint.</span>
+        </h1>
+
+        <p className="sf-subtitle sf-gsap-anim">
+          StackForge uses AI agents to plan your full-stack project - schema, APIs, frontend
+          pages, DevOps - all generated in seconds.
+        </p>
+      </main>
+
+      <section className="sf-dashboard-wrapper sf-anim-dash">
+        <div className="sf-dash-glow-intense" />
+        <form onSubmit={handleSubmit} className="sf-dashboard-ui">
+          <div className="sf-form-group">
+            <label className="sf-form-label" htmlFor="prompt-input">
+              Project description
+            </label>
+            <textarea
+              id="prompt-input"
+              className="sf-textarea"
+              placeholder="e.g. A SaaS platform for managing freelancer invoices with user auth, Stripe payments, and a dashboard..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+            />
+            {prompt.length > 0 && prompt.trim().length < 10 && (
+              <p className="sf-inline-error">Please enter at least 10 characters</p>
+            )}
+          </div>
+
+          <div className="sf-dropdowns-container">
             <SelectField
               id="frontend-select"
               label="Frontend"
@@ -177,99 +233,46 @@ export function Home() {
             />
           </div>
 
-          <label
-            style={{
-              marginTop: "16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "12px",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              border: "1px solid #23232f",
-              background: "#141420",
-              cursor: "pointer",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontSize: "13px", color: "#f0f0f5", fontWeight: 600 }}>
-                Enable code generation agent
-              </span>
-              <span style={{ fontSize: "12px", color: "#9898a8" }}>
-                ON: generate runnable source files. OFF: blueprint-only flow.
-              </span>
+          <label className="sf-codegen-toggle" htmlFor="codegen-toggle">
+            <div className="sf-codegen-toggle-copy">
+              <span>Enable code generation agent</span>
+              <small>ON: generate runnable source files. OFF: blueprint-only flow.</small>
             </div>
             <input
+              id="codegen-toggle"
               type="checkbox"
               checked={enableCodeGeneration}
               onChange={(e) => setEnableCodeGeneration(e.target.checked)}
-              style={{ width: "18px", height: "18px", accentColor: "#6366f1", cursor: "pointer" }}
             />
           </label>
 
-          {/* Error message */}
-          {error && (
-            <div
-              style={{
-                marginTop: "16px",
-                padding: "12px 16px",
-                fontSize: "13px",
-                color: "#f43f5e",
-                background: "rgba(244, 63, 94, 0.08)",
-                border: "1px solid rgba(244, 63, 94, 0.2)",
-                borderRadius: "10px",
-              }}
-            >
-              {error}
-            </div>
-          )}
+          {error && <div className="sf-error-box">{error}</div>}
 
-          {/* Submit */}
-          <div style={{ marginTop: "28px", display: "flex", flexDirection: "column", gap: "12px" }}>
-            <Button
+          <div className="sf-action-stack">
+            <button
               type="submit"
-              size="lg"
-              loading={loading}
-              disabled={!canGenerate}
-              style={{ width: "100%" }}
+              className="sf-btn-generate"
+              disabled={!canGenerate || loading}
             >
               {loading ? "Generating..." : "Generate Blueprint"}
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="secondary"
-              size="lg"
-              style={{ width: "100%" }}
+              className="sf-btn-demo"
               onClick={() => {
                 const demoId = crypto.randomUUID();
                 addToast("info", "Starting demo simulation...");
                 navigate(`/jobs/${demoId}?demo=true&codegen=${enableCodeGeneration ? "1" : "0"}`);
               }}
             >
-              🎬 Try Demo — No API Key Needed
-            </Button>
+              Try Demo - No API Key Needed
+            </button>
           </div>
 
           {(runtimeError || runtime?.ready === false || runtime !== null) && (
-            <div
-              style={{
-                marginTop: "14px",
-                padding: "12px 14px",
-                borderRadius: "10px",
-                background: runtime?.ready === false
-                  ? "rgba(244, 63, 94, 0.08)"
-                  : "rgba(56, 189, 248, 0.08)",
-                border: runtime?.ready === false
-                  ? "1px solid rgba(244, 63, 94, 0.2)"
-                  : "1px solid rgba(56, 189, 248, 0.2)",
-                color: runtime?.ready === false ? "#f43f5e" : "#7dd3fc",
-                fontSize: "12px",
-              }}
-            >
+            <div className={`sf-runtime-badge ${runtime?.ready === false || runtimeError ? "is-error" : "is-ok"}`}>
               {runtimeError && `Runtime status unavailable: ${runtimeError}`}
-              {!runtimeError && runtime?.ready && (
-                <>Runtime ready. Provider: {runtime.provider}</>
-              )}
+              {!runtimeError && runtime?.ready && <>Runtime ready. Provider: {runtime.provider}</>}
               {!runtimeError && runtime?.ready === false && (
                 <>
                   Runtime unavailable ({runtime.provider}): {runtime.reason ?? "Provider not configured"}
@@ -278,7 +281,7 @@ export function Home() {
             </div>
           )}
         </form>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -298,35 +301,16 @@ function SelectField({
   options: readonly string[];
 }) {
   return (
-    <div>
-      <label
-        htmlFor={id}
-        style={{ display: "block", fontSize: "12px", color: "#9898a8", marginBottom: "6px", fontWeight: 500 }}
-      >
+    <div className="sf-dropdown-group">
+      <label htmlFor={id} className="sf-form-label">
         {label}
       </label>
+      <div className="sf-select-wrapper">
       <select
         id={id}
+        className="sf-select"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          fontSize: "14px",
-          fontFamily: "'Inter', system-ui, sans-serif",
-          background: "#1a1a26",
-          border: "1px solid #23232f",
-          borderRadius: "10px",
-          color: "#f0f0f5",
-          cursor: "pointer",
-          outline: "none",
-          transition: "border-color 250ms",
-          appearance: "none",
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239898a8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right 12px center",
-          paddingRight: "32px",
-        }}
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>
@@ -334,6 +318,7 @@ function SelectField({
           </option>
         ))}
       </select>
+      </div>
     </div>
   );
 }

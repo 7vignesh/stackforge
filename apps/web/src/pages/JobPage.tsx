@@ -65,6 +65,13 @@ function summarizeUpdateBadge(result: AddFeatureResponse): string {
   return `${result.agentsRerun.length} agents updated · ${newRoutes} new routes · ${schemaChanges} schema change`;
 }
 
+function rerunStatusClass(status: UpdateAgentStatus): string {
+  if (status === "running") return "is-running";
+  if (status === "complete") return "is-complete";
+  if (status === "error") return "is-error";
+  return "is-unchanged";
+}
+
 export function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const [searchParams] = useSearchParams();
@@ -210,8 +217,10 @@ export function JobPage() {
   if (!jobId) {
     return (
       <PageShell>
-        <p style={{ color: "#f43f5e" }}>Invalid job ID</p>
-        <Link to="/" style={{ color: "#6366f1", textDecoration: "none", fontSize: "14px" }}>
+        <div className="sf-job-inline-alert is-error">
+          <p>Invalid job ID</p>
+        </div>
+        <Link to="/" className="sf-job-back-link">
           ← Back to home
         </Link>
       </PageShell>
@@ -221,20 +230,12 @@ export function JobPage() {
   if (loadError) {
     return (
       <PageShell>
-        <div
-          style={{
-            padding: "24px",
-            background: "rgba(244, 63, 94, 0.08)",
-            border: "1px solid rgba(244, 63, 94, 0.2)",
-            borderRadius: "14px",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ color: "#f43f5e", fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>
+        <div className="sf-job-inline-alert is-error sf-job-alert-center">
+          <p className="sf-job-alert-title">
             Failed to load job
           </p>
-          <p style={{ color: "#9898a8", fontSize: "14px" }}>{loadError}</p>
-          <Link to="/" style={{ color: "#6366f1", textDecoration: "none", fontSize: "14px", marginTop: "16px", display: "inline-block" }}>
+          <p className="sf-job-alert-text">{loadError}</p>
+          <Link to="/" className="sf-job-back-link">
             ← Back to home
           </Link>
         </div>
@@ -244,37 +245,60 @@ export function JobPage() {
 
   return (
     <>
-      <PageShell>
+      <div className="sf-job-page">
+        <div className="sf-job-hero-lighting" aria-hidden="true">
+          <div className="sf-job-vertical-rays" />
+          <div className="sf-job-ambient-bloom" />
+          <div className="sf-job-arc-svg-container">
+            <svg width="100%" height="100%" viewBox="0 0 1400 600" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="job-core-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="35%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="47%" stopColor="rgba(255,255,255,0.9)" />
+                  <stop offset="50%" stopColor="rgba(255,255,255,1)" />
+                  <stop offset="53%" stopColor="rgba(255,255,255,0.9)" />
+                  <stop offset="65%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                </linearGradient>
+
+                <linearGradient id="job-ambient-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="rgba(56,189,248,0)" />
+                  <stop offset="25%" stopColor="rgba(56,189,248,0.08)" />
+                  <stop offset="40%" stopColor="rgba(56,189,248,0.28)" />
+                  <stop offset="50%" stopColor="rgba(186,230,253,0.45)" />
+                  <stop offset="60%" stopColor="rgba(56,189,248,0.28)" />
+                  <stop offset="75%" stopColor="rgba(56,189,248,0.08)" />
+                  <stop offset="100%" stopColor="rgba(56,189,248,0)" />
+                </linearGradient>
+              </defs>
+              <path d="M 0 600 Q 700 120 1400 600" fill="none" stroke="url(#job-ambient-grad)" strokeWidth="54" filter="blur(30px)" opacity="0.25" />
+              <path d="M 0 600 Q 700 120 1400 600" fill="none" stroke="url(#job-ambient-grad)" strokeWidth="13" filter="blur(7px)" opacity="0.5" />
+              <path d="M 0 600 Q 700 120 1400 600" fill="none" stroke="url(#job-core-glow)" strokeWidth="2" />
+            </svg>
+          </div>
+          <div className="sf-job-core-flare" />
+        </div>
+
+        <PageShell>
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "32px",
-            flexWrap: "wrap",
-            gap: "16px",
-          }}
-        >
+        <div className="sf-job-header">
           <div>
-            <Link
-              to="/"
-              style={{ fontSize: "13px", color: "#9898a8", textDecoration: "none", display: "block", marginBottom: "8px" }}
-            >
+            <Link to="/" className="sf-job-back-link sf-job-back-link-compact">
               ← Back to home
             </Link>
-            <h1 style={{ fontSize: "24px", fontWeight: 700 }}>
+            <h1 className="sf-job-title">
               {job?.projectName ?? "Loading..."}
             </h1>
-            <p style={{ fontSize: "13px", color: "#5c5c6f", marginTop: "4px" }}>
+            <p className="sf-job-subtitle">
               Job {jobId.slice(0, 8)}...
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="sf-job-status-wrap">
             {stream.connected && (
-              <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#34d399" }}>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#34d399" }} />
+              <span className="sf-job-live-pill">
+                <span className="sf-job-live-dot" />
                 Live
               </span>
             )}
@@ -283,34 +307,25 @@ export function JobPage() {
         </div>
 
         {/* Two-column layout on large screens */}
-        <div style={{ display: "grid", gridTemplateColumns: stream.jobStatus === "completed" && job?.blueprint ? "380px 1fr" : "1fr", gap: "32px" }}>
+        <div className={`sf-job-grid ${stream.jobStatus === "completed" && job?.blueprint ? "has-blueprint" : ""}`}>
           {/* Agent Timeline */}
-          <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
+          <section className="sf-job-panel sf-job-panel-sticky">
+            <h2 className="sf-job-panel-title">
               Agent Progress
             </h2>
             <AgentTimeline agents={stream.agents} />
-          </div>
+          </section>
 
           {/* Blueprint */}
           {stream.jobStatus === "completed" && job?.blueprint && (
-            <div>
-              <div style={{ marginBottom: "14px", border: "1px solid #23232f", borderRadius: "12px", padding: "14px" }}>
-                <form onSubmit={handleFeatureUpdateSubmit} style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <section className="sf-job-panel sf-job-panel-content">
+              <div className="sf-job-update-card">
+                <form onSubmit={handleFeatureUpdateSubmit} className="sf-job-update-form">
                   <input
                     value={featureRequest}
                     onChange={(e) => setFeatureRequest(e.target.value)}
                     placeholder="✦ Add a feature... (e.g. 'Add Stripe payments')"
-                    style={{
-                      flex: 1,
-                      minWidth: "240px",
-                      padding: "10px 12px",
-                      borderRadius: "10px",
-                      border: "1px solid #2a2a38",
-                      background: "#161622",
-                      color: "#f0f0f5",
-                      fontSize: "13px",
-                    }}
+                    className="sf-job-feature-input"
                     disabled={updateFlow.isRunning}
                   />
                   <Button type="submit" variant="secondary" loading={updateFlow.isRunning}>
@@ -319,23 +334,9 @@ export function JobPage() {
                 </form>
 
                 {(updateFlow.isRunning || updateFlow.affectedAgents.length > 0) && (
-                  <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "8px" }}>
+                  <div className="sf-job-agent-rerun-grid">
                     {UPDATE_AGENT_ORDER.map((agent) => {
                       const status = updateFlow.statuses[agent];
-                      const bg = status === "running"
-                        ? "rgba(56, 189, 248, 0.14)"
-                        : status === "complete"
-                          ? "rgba(34, 197, 94, 0.12)"
-                          : status === "error"
-                            ? "rgba(239, 68, 68, 0.12)"
-                            : "rgba(92, 92, 111, 0.14)";
-                      const border = status === "running"
-                        ? "#38bdf8"
-                        : status === "complete"
-                          ? "#22c55e"
-                          : status === "error"
-                            ? "#ef4444"
-                            : "#4b4b60";
                       const label = status === "running"
                         ? "rerunning"
                         : status === "complete"
@@ -345,9 +346,9 @@ export function JobPage() {
                             : "unchanged";
 
                       return (
-                        <div key={agent} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "10px", padding: "8px" }}>
-                          <div style={{ fontSize: "12px", color: "#f0f0f5", textTransform: "capitalize", fontWeight: 600 }}>{agent}</div>
-                          <div style={{ fontSize: "11px", color: status === "unchanged" ? "#a6a6bb" : "#dbe6ff" }}>{label}</div>
+                        <div key={agent} className={`sf-job-agent-rerun-item ${rerunStatusClass(status)}`}>
+                          <div className="sf-job-agent-rerun-name">{agent}</div>
+                          <div className={`sf-job-agent-rerun-label ${status === "unchanged" ? "is-muted" : ""}`}>{label}</div>
                         </div>
                       );
                     })}
@@ -355,8 +356,8 @@ export function JobPage() {
                 )}
 
                 {updateFlow.result && (
-                  <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                    <div style={{ fontSize: "12px", color: "#a5b4fc", fontWeight: 700 }}>
+                  <div className="sf-job-update-summary">
+                    <div className="sf-job-update-summary-text">
                       {summarizeUpdateBadge(updateFlow.result)}
                     </div>
                     <Button variant="secondary" loading={isUpdatedZipLoading} onClick={handleDownloadUpdatedZip}>
@@ -367,39 +368,29 @@ export function JobPage() {
               </div>
 
               {updateFlow.result && (
-                <div style={{ marginBottom: "16px" }}>
-                  <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "10px", color: "#9898a8" }}>
+                <div className="sf-job-section-gap">
+                  <h2 className="sf-job-panel-title">
                     Diff
                   </h2>
                   <FeatureDiffPanel diff={updateFlow.result.diff} />
                 </div>
               )}
 
-              <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
+              <h2 className="sf-job-panel-title">
                 Generated Blueprint
               </h2>
               <BlueprintView blueprint={job.blueprint} />
-            </div>
+            </section>
           )}
         </div>
 
         {/* Error state */}
         {stream.jobStatus === "failed" && (
-          <div
-            className="animate-fade-in"
-            style={{
-              marginTop: "32px",
-              padding: "24px",
-              background: "rgba(244, 63, 94, 0.06)",
-              border: "1px solid rgba(244, 63, 94, 0.2)",
-              borderRadius: "14px",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontSize: "16px", fontWeight: 600, color: "#f43f5e", marginBottom: "8px" }}>
+          <div className="animate-fade-in sf-job-inline-alert is-error sf-job-alert-center sf-job-failed-wrap">
+            <p className="sf-job-alert-title">
               Generation Failed
             </p>
-            <p style={{ fontSize: "14px", color: "#9898a8", marginBottom: "16px" }}>
+            <p className="sf-job-alert-text sf-job-alert-text-spaced">
               {stream.jobError ?? "An unexpected error occurred"}
             </p>
             <Button variant="secondary" onClick={() => window.location.href = "/"}>
@@ -410,11 +401,12 @@ export function JobPage() {
 
         {/* Loading indicator when still running */}
         {(stream.jobStatus === "queued" || stream.jobStatus === "running") && !job && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px" }}>
+          <div className="sf-job-loading-wrap">
             <Spinner size={32} />
           </div>
         )}
-      </PageShell>
+        </PageShell>
+      </div>
       <TelemetryPanel jobId={jobId} isDemo={isDemo} />
     </>
   );
@@ -422,33 +414,17 @@ export function JobPage() {
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "40px 24px" }}>
+    <div className="sf-job-shell">
       {children}
     </div>
   );
 }
 
 function StatusPill({ status }: { status: string }) {
-  const config: Record<string, { bg: string; color: string }> = {
-    queued:    { bg: "rgba(92, 92, 111, 0.15)", color: "#9898a8" },
-    running:   { bg: "rgba(56, 189, 248, 0.12)", color: "#38bdf8" },
-    completed: { bg: "rgba(52, 211, 153, 0.12)", color: "#34d399" },
-    failed:    { bg: "rgba(244, 63, 94, 0.12)", color: "#f43f5e" },
-  };
-  const c = config[status] ?? config["queued"]!;
+  const statusClass = ["queued", "running", "completed", "failed"].includes(status) ? status : "queued";
 
   return (
-    <span
-      style={{
-        padding: "4px 14px",
-        fontSize: "13px",
-        fontWeight: 600,
-        borderRadius: "20px",
-        background: c.bg,
-        color: c.color,
-        textTransform: "capitalize",
-      }}
-    >
+    <span className={`sf-job-status-pill is-${statusClass}`}>
       {status}
     </span>
   );
