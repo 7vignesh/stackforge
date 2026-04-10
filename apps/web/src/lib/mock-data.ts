@@ -122,8 +122,11 @@ export const MOCK_BLUEPRINT: Blueprint = {
 interface DemoSSEEvent {
   type: string;
   jobId: string;
-  timestamp: string;
+  timestamp: string | number;
   agent?: string;
+  agentId?: string;
+  token?: string;
+  fullOutput?: unknown;
   payload: Record<string, unknown>;
 }
 
@@ -173,6 +176,36 @@ export function runDemoSimulation(
     }, startDelay);
 
     // agent_completed
+    const tokenBursts = [
+      `> ${agent}: preparing response...\n`,
+      `> ${agent}: generating structured plan...\n`,
+      `> ${agent}: validating output schema...\n`,
+    ];
+
+    tokenBursts.forEach((token, tokenIndex) => {
+      schedule(() => {
+        onEvent({
+          type: "agent_token",
+          jobId,
+          timestamp: Date.now(),
+          agentId: agent,
+          token,
+          payload: {},
+        });
+      }, startDelay + 180 + tokenIndex * 190);
+    });
+
+    schedule(() => {
+      onEvent({
+        type: "agent_complete",
+        jobId,
+        timestamp: Date.now(),
+        agentId: agent,
+        fullOutput: { message: `${agent} output complete` },
+        payload: {},
+      });
+    }, endDelay - 40);
+
     schedule(() => {
       onEvent({
         type: "agent_completed",

@@ -306,7 +306,7 @@ export class OpenRouterProvider implements LLMProvider {
     this.appUrl = options.appUrl ?? "http://localhost";
   }
 
-  async call({ options }: ProviderCallInput): Promise<ProviderCallOutput> {
+  async call({ options, onToken }: ProviderCallInput): Promise<ProviderCallOutput> {
     const startedAt = Date.now();
 
     const response = await fetch(this.endpoint, {
@@ -326,6 +326,8 @@ export class OpenRouterProvider implements LLMProvider {
         max_tokens: options.maxOutputTokens,
         temperature: options.temperature,
         response_format: { type: "json_object" },
+        stream: true,
+        stream_options: { include_usage: true },
       }),
     });
 
@@ -334,15 +336,155 @@ export class OpenRouterProvider implements LLMProvider {
       throw new Error(`OpenRouter request failed (${response.status}): ${errorBody}`);
     }
 
-    const data = (await response.json()) as OpenRouterResponse;
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    const isJsonResponse = contentType.includes("application/json");
+    const isSseResponse = contentType.includes("text/event-stream");
 
-    if (data.error?.message !== undefined) {
-      throw new Error(`OpenRouter error: ${data.error.message}`);
+    if (isJsonResponse && !isSseResponse) {
+      const data = (await response.json()) as OpenRouterResponse;
+
+      if (data.error?.message !== undefined) {
+        throw new Error(`OpenRouter error: ${data.error.message}`);
+      }
+
+      const content = data.choices?.[0]?.message?.content;
+      if (content === undefined || content.length === 0) {
+        throw new Error("OpenRouter response did not include message content");
+      }
+
+      let output: unknown;
+      try {
+        output = parseJsonContent(content);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        throw new Error(`OpenRouter returned non-JSON content: ${msg}`);
+      }
+
+      const inputTokens = data.usage?.prompt_tokens;
+      const outputTokens = data.usage?.completion_tokens;
+      const totalTokens = data.usage?.total_tokens
+        ?? (inputTokens ?? 0) + (outputTokens ?? 0);
+
+      return {
+        output,
+        tokensUsed: totalTokens,
+        durationMs: Date.now() - startedAt,
+        ...(inputTokens !== undefined ? { inputTokens } : {}),
+        ...(outputTokens !== undefined ? { outputTokens } : {}),
+        model: data.model ?? options.model,
+      };
     }
 
-    const content = data.choices?.[0]?.message?.content;
-    if (content === undefined || content.length === 0) {
-      throw new Error("OpenRouter response did not include message content");
+    if (response.body === null) {
+      const data = (await response.json()) as OpenRouterResponse;
+
+      if (data.error?.message !== undefined) {
+        throw new Error(`OpenRouter error: ${data.error.message}`);
+      }
+
+      const content = data.choices?.[0]?.message?.content;
+      if (content === undefined || content.length === 0) {
+        throw new Error("OpenRouter response did not include message content");
+      }
+
+      let output: unknown;
+      try {
+        output = parseJsonContent(content);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        throw new Error(`OpenRouter returned non-JSON content: ${msg}`);
+      }
+
+      const inputTokens = data.usage?.prompt_tokens;
+      const outputTokens = data.usage?.completion_tokens;
+      const totalTokens = data.usage?.total_tokens
+        ?? (inputTokens ?? 0) + (outputTokens ?? 0);
+
+      return {
+        output,
+        tokensUsed: totalTokens,
+        durationMs: Date.now() - startedAt,
+        ...(inputTokens !== undefined ? { inputTokens } : {}),
+        ...(outputTokens !== undefined ? { outputTokens } : {}),
+        model: data.model ?? options.model,
+      };
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let streamedContent = "";
+    let usage: OpenRouterResponse["usage"];
+    let responseModel: string | undefined;
+
+    const processChunk = (raw: string): void => {
+      const lines = raw.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) {
+          continue;
+        }
+
+        const payload = trimmed.slice(5).trim();
+        if (payload.length === 0 || payload === "[DONE]") {
+          continue;
+        }
+
+        let parsed: OpenRouterResponse & {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+
+        try {
+          parsed = JSON.parse(payload) as OpenRouterResponse & {
+            choices?: Array<{ delta?: { content?: string } }>;
+          };
+        } catch {
+          continue;
+        }
+
+        if (parsed.error?.message !== undefined) {
+          throw new Error(`OpenRouter error: ${parsed.error.message}`);
+        }
+
+        if (parsed.usage !== undefined) {
+          usage = parsed.usage;
+        }
+
+        if (parsed.model !== undefined) {
+          responseModel = parsed.model;
+        }
+
+        const tokenChunk = parsed.choices?.[0]?.delta?.content;
+        if (typeof tokenChunk === "string" && tokenChunk.length > 0) {
+          streamedContent += tokenChunk;
+          onToken?.(tokenChunk);
+        }
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+
+      for (const eventChunk of events) {
+        processChunk(eventChunk);
+      }
+    }
+
+    buffer += decoder.decode();
+    if (buffer.trim().length > 0) {
+      processChunk(buffer);
+    }
+
+    const content = streamedContent.trim();
+    if (content.length === 0) {
+      throw new Error("OpenRouter streaming response did not include message content");
     }
 
     let output: unknown;
@@ -353,9 +495,9 @@ export class OpenRouterProvider implements LLMProvider {
       throw new Error(`OpenRouter returned non-JSON content: ${msg}`);
     }
 
-    const inputTokens = data.usage?.prompt_tokens;
-    const outputTokens = data.usage?.completion_tokens;
-    const totalTokens = data.usage?.total_tokens
+    const inputTokens = usage?.prompt_tokens;
+    const outputTokens = usage?.completion_tokens;
+    const totalTokens = usage?.total_tokens
       ?? (inputTokens ?? 0) + (outputTokens ?? 0);
 
     return {
@@ -364,7 +506,7 @@ export class OpenRouterProvider implements LLMProvider {
       durationMs: Date.now() - startedAt,
       ...(inputTokens !== undefined ? { inputTokens } : {}),
       ...(outputTokens !== undefined ? { outputTokens } : {}),
-      model: data.model ?? options.model,
+      model: responseModel ?? options.model,
     };
   }
 }
