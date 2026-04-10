@@ -72,13 +72,7 @@ function AnimatedNumber({
   }, [watchValue]);
 
   return (
-    <span
-      style={{
-        display: "inline-block",
-        transform: pulse ? "scale(1.1)" : "scale(1)",
-        transition: "transform 200ms ease",
-      }}
-    >
+    <span className={`sf-telemetry-animated-number ${pulse ? "is-pulse" : ""}`}>
       {display}
     </span>
   );
@@ -155,24 +149,13 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
 
   return (
     <aside
-      style={{
-        position: "fixed",
-        right: "20px",
-        bottom: "20px",
-        width: "min(360px, calc(100vw - 32px))",
-        zIndex: 40,
-        background: "#12121b",
-        border: "1px solid #23232f",
-        borderRadius: "14px",
-        boxShadow: "0 14px 38px rgba(0, 0, 0, 0.45)",
-        padding: "16px",
-      }}
+      className="sf-telemetry-panel"
     >
-      <div style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "#f0f0f5" }}>
+      <div className="sf-telemetry-title">
         📊 This Run
       </div>
 
-      <div style={{ borderTop: "1px solid #23232f", borderBottom: "1px solid #23232f", padding: "12px 0" }}>
+      <div className="sf-telemetry-stats-wrap">
         <StatRow
           label="Total tokens"
           value={<AnimatedNumber display={formatInt(telemetry.totalTokensUsed)} watchValue={telemetry.totalTokensUsed} />}
@@ -196,10 +179,10 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
         />
       </div>
 
-      <div style={{ marginTop: "12px" }}>
-        <div style={{ fontSize: "13px", color: "#9898a8", marginBottom: "10px" }}>Provider breakdown:</div>
+      <div className="sf-telemetry-group">
+        <div className="sf-telemetry-group-title">Provider breakdown:</div>
         {providerRows.length === 0 && (
-          <div style={{ fontSize: "12px", color: "#6f6f84" }}>No provider calls yet</div>
+          <div className="sf-telemetry-empty">No provider calls yet</div>
         )}
         {providerRows.map((row, index) => (
           <ProviderRow
@@ -207,15 +190,15 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
             name={toDisplayName(row.name)}
             calls={row.calls}
             ratio={providerTotalCalls > 0 ? (row.calls / providerTotalCalls) * 100 : 0}
-            color={index % 2 === 0 ? "#3b82f6" : "#a855f7"}
+            variant={index % 2 === 0 ? "provider-a" : "provider-b"}
           />
         ))}
       </div>
 
-      <div style={{ marginTop: "10px" }}>
-        <div style={{ fontSize: "13px", color: "#9898a8", marginBottom: "10px" }}>Model breakdown:</div>
+      <div className="sf-telemetry-group sf-telemetry-group-tight">
+        <div className="sf-telemetry-group-title">Model breakdown:</div>
         {modelRows.length === 0 && (
-          <div style={{ fontSize: "12px", color: "#6f6f84" }}>No model calls yet</div>
+          <div className="sf-telemetry-empty">No model calls yet</div>
         )}
         {modelRows.map((row, index) => (
           <ProviderRow
@@ -223,7 +206,7 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
             name={row.name}
             calls={row.calls}
             ratio={modelTotalCalls > 0 ? (row.calls / modelTotalCalls) * 100 : 0}
-            color={index % 2 === 0 ? "#22c55e" : "#14b8a6"}
+            variant={index % 2 === 0 ? "model-a" : "model-b"}
           />
         ))}
       </div>
@@ -233,18 +216,9 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
 
 function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        fontSize: "13px",
-        color: "#f0f0f5",
-        marginBottom: "7px",
-      }}
-    >
-      <span style={{ color: "#9898a8" }}>{label}</span>
-      <strong style={{ fontWeight: 700 }}>{value}</strong>
+    <div className="sf-telemetry-stat-row">
+      <span className="sf-telemetry-stat-label">{label}</span>
+      <strong className="sf-telemetry-stat-value">{value}</strong>
     </div>
   );
 }
@@ -253,31 +227,23 @@ function ProviderRow({
   name,
   calls,
   ratio,
-  color,
+  variant,
 }: {
   name: string;
   calls: number;
   ratio: number;
-  color: string;
+  variant: "provider-a" | "provider-b" | "model-a" | "model-b";
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(84px, 1fr) 2fr auto", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+    <div className="sf-telemetry-provider-row">
       <span
         title={name}
-        style={{
-          fontSize: "12px",
-          color: "#f0f0f5",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+        className="sf-telemetry-provider-name"
       >
         {name}
       </span>
-      <div style={{ background: "#1d1d2a", borderRadius: "999px", height: "10px", overflow: "hidden" }}>
-        <div style={{ width: `${ratio}%`, height: "100%", transition: "width 300ms ease", background: color }} />
-      </div>
-      <span style={{ fontSize: "12px", color: "#9898a8", minWidth: "56px", textAlign: "right" }}>{calls} calls</span>
+      <progress className={`sf-telemetry-provider-progress is-${variant}`} max={100} value={ratio} />
+      <span className="sf-telemetry-provider-calls">{calls} calls</span>
     </div>
   );
 }
