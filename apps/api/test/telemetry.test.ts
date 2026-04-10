@@ -5,6 +5,7 @@ import {
   getTelemetry,
   initRun,
   recordAgentComplete,
+  recordProviderCall,
   recordAgentTokens,
 } from "../src/services/telemetry.js";
 
@@ -17,19 +18,23 @@ describe("telemetry service", () => {
     expect(initial.agentsTotal).toBeGreaterThan(0);
     expect(initial.endTime).toBeNull();
 
-    recordAgentTokens(runId, "planner", "gemini", 2100);
+    recordProviderCall(runId, "openrouter", "openai/gpt-4o-mini");
+    recordAgentTokens(runId, "planner", "openrouter", "openai/gpt-4o-mini", 2100);
     recordAgentComplete(runId, "planner");
-    recordAgentTokens(runId, "api", "groq", 3200);
+    recordProviderCall(runId, "nvidia", "moonshotai/kimi-k2.5");
+    recordAgentTokens(runId, "api", "nvidia", "moonshotai/kimi-k2.5", 3200);
     recordAgentComplete(runId, "api");
 
     const mid = getTelemetry(runId);
     expect(mid).toBeDefined();
     expect(mid?.totalTokensUsed).toBe(5300);
     expect(mid?.agentsCompleted).toBe(2);
-    expect(mid?.providerBreakdown.gemini.calls).toBe(1);
-    expect(mid?.providerBreakdown.groq.calls).toBe(1);
-    expect(mid?.providerBreakdown.gemini.tokens).toBe(2100);
-    expect(mid?.providerBreakdown.groq.tokens).toBe(3200);
+    expect(mid?.providerBreakdown["openrouter"]?.calls).toBe(1);
+    expect(mid?.providerBreakdown["nvidia"]?.calls).toBe(1);
+    expect(mid?.providerBreakdown["openrouter"]?.tokens).toBe(2100);
+    expect(mid?.providerBreakdown["nvidia"]?.tokens).toBe(3200);
+    expect(mid?.modelBreakdown["openai/gpt-4o-mini"]?.calls).toBe(1);
+    expect(mid?.modelBreakdown["moonshotai/kimi-k2.5"]?.calls).toBe(1);
     expect(mid?.estimatedCostINR).toBeGreaterThanOrEqual(0);
 
     const finalized = finalizeRun(runId);
@@ -44,7 +49,8 @@ describe("telemetry service", () => {
     const runId = crypto.randomUUID();
     initRun(runId);
 
-    recordAgentTokens(runId, "schema", "gemini", 1);
+    recordProviderCall(runId, "openrouter", "openai/gpt-4o-mini");
+    recordAgentTokens(runId, "schema", "openrouter", "openai/gpt-4o-mini", 1);
 
     const snapshot = getTelemetry(runId);
     expect(snapshot?.estimatedCostINR).toBe(0);
