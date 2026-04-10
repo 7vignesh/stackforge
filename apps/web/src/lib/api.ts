@@ -14,6 +14,15 @@ export interface GenerateResponse {
   jobUrl: string;
 }
 
+export interface GenerateExecutionOptions {
+  enableCodeGeneration?: boolean;
+  tokenBudget?: {
+    maxTotalTokens?: number;
+    perAgent?: Partial<Record<"planner" | "schema" | "api" | "frontend" | "devops" | "reviewer" | "codegen", number>>;
+    enforcement?: "strict" | "warn";
+  };
+}
+
 export interface RuntimeResponse {
   provider: "openrouter" | "mock";
   ready: boolean;
@@ -76,6 +85,7 @@ export interface Blueprint {
   };
   generatedFilesPlan: { path: string; generator: string; description: string }[];
   reviewerNotes: { severity: "info" | "warning" | "error"; agent: string; note: string }[];
+  generatedSourceFiles?: { path: string; content: string; language?: string }[];
 }
 
 export type PipelineAgentId = "planner" | "schema" | "api" | "frontend" | "devops";
@@ -110,11 +120,19 @@ export interface GithubPushResponse {
   success: boolean;
 }
 
-export async function generateProject(prompt: string, projectName?: string): Promise<GenerateResponse> {
+export async function generateProject(
+  prompt: string,
+  projectName?: string,
+  execution?: GenerateExecutionOptions,
+): Promise<GenerateResponse> {
   const res = await fetch(`${API_BASE}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, ...(projectName ? { projectName } : {}) }),
+    body: JSON.stringify({
+      prompt,
+      ...(projectName ? { projectName } : {}),
+      ...(execution ? { execution } : {}),
+    }),
   });
 
   if (!res.ok) {

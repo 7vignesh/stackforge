@@ -7,6 +7,7 @@ import {
   buildFrontendOutput,
   buildDevopsOutput,
   buildReviewerOutput,
+  buildCodegenOutput,
 } from "./mock.data.js";
 
 const SIMULATED_TOKENS: Record<AgentName, number> = {
@@ -16,6 +17,7 @@ const SIMULATED_TOKENS: Record<AgentName, number> = {
   frontend: 870,
   devops: 590,
   reviewer: 710,
+  codegen: 1650,
 };
 
 const SIMULATED_DELAY_MS: Record<AgentName, [number, number]> = {
@@ -25,6 +27,7 @@ const SIMULATED_DELAY_MS: Record<AgentName, [number, number]> = {
   frontend: [160, 320],
   devops: [100, 220],
   reviewer: [140, 300],
+  codegen: [260, 540],
 };
 
 function extractProjectName(input: unknown): string {
@@ -53,6 +56,7 @@ function dispatch(agentName: AgentName, input: unknown): unknown {
     case "frontend": return buildFrontendOutput();
     case "devops":   return buildDevopsOutput(projectName);
     case "reviewer": return buildReviewerOutput();
+    case "codegen": return buildCodegenOutput(projectName);
   }
 }
 

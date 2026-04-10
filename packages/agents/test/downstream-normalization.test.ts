@@ -7,6 +7,7 @@ import type { SSEEvent } from "@stackforge/shared";
 import {
   buildPlannerOutput,
   buildReviewerOutput,
+  buildCodegenOutput,
 } from "../src/provider/mock.data.js";
 
 function extractProjectName(input: unknown): string {
@@ -134,6 +135,25 @@ class PartialDownstreamProvider implements LLMProvider {
       };
     }
 
+    if (agentName === "codegen") {
+      const base = buildCodegenOutput(projectName);
+      return {
+        output: {
+          generatedSourceFiles: [
+            {
+              path: base.generatedSourceFiles[0]?.path ?? "README.md",
+              content: base.generatedSourceFiles[0]?.content ?? "# Generated",
+            },
+          ],
+        },
+        tokensUsed: 100,
+        durationMs: 5,
+        inputTokens: 40,
+        outputTokens: 60,
+        model: options.model,
+      };
+    }
+
     return {
       output: {},
       tokensUsed: 1,
@@ -146,7 +166,7 @@ class PartialDownstreamProvider implements LLMProvider {
 }
 
 describe("Downstream output normalization", () => {
-  it("fills missing required keys for schema/api/frontend/devops/reviewer", async () => {
+  it("fills missing required keys for schema/api/frontend/devops/reviewer/codegen", async () => {
     const events: SSEEvent[] = [];
 
     const blueprint = await runOrchestrator({
@@ -178,6 +198,10 @@ describe("Downstream output normalization", () => {
     expect(blueprint.reviewerNotes.length).toBeGreaterThan(0);
     expect(blueprint.reviewerNotes[0]?.severity).toBe("info");
     expect(blueprint.reviewerNotes[0]?.agent.length).toBeGreaterThan(0);
+
+    expect((blueprint.generatedSourceFiles?.length ?? 0) > 0).toBe(true);
+    expect(blueprint.generatedSourceFiles?.[0]?.path.length).toBeGreaterThan(0);
+    expect(blueprint.generatedSourceFiles?.[0]?.content.length).toBeGreaterThan(0);
 
     const failedEvent = events.find((event) => event.type === "agent_failed");
     expect(failedEvent).toBeUndefined();

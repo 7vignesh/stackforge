@@ -69,9 +69,10 @@ export function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const [searchParams] = useSearchParams();
   const isDemo = searchParams.get("demo") === "true";
+  const includeCodegen = searchParams.get("codegen") !== "0";
 
   const { addToast } = useToast();
-  const stream = useJobStream(jobId, isDemo);
+  const stream = useJobStream(jobId, isDemo, includeCodegen);
   const [job, setJob] = useState<JobResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [featureRequest, setFeatureRequest] = useState("");

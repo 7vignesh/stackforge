@@ -15,6 +15,7 @@ export function Home() {
   const [frontend, setFrontend] = useState("react");
   const [backend, setBackend] = useState("express");
   const [database, setDatabase] = useState("postgres");
+  const [enableCodeGeneration, setEnableCodeGeneration] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<RuntimeResponse | null>(null);
@@ -45,9 +46,13 @@ export function Home() {
     const fullPrompt = `${prompt.trim()}\n\nStack preferences: Frontend: ${frontend}, Backend: ${backend}, Database: ${database}`;
 
     try {
-      const res = await generateProject(fullPrompt);
+      const res = await generateProject(
+        fullPrompt,
+        undefined,
+        { enableCodeGeneration },
+      );
       addToast("success", `Project "${res.projectName}" queued!`);
-      navigate(`/jobs/${res.jobId}`);
+      navigate(`/jobs/${res.jobId}?codegen=${enableCodeGeneration ? "1" : "0"}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
@@ -172,6 +177,36 @@ export function Home() {
             />
           </div>
 
+          <label
+            style={{
+              marginTop: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: "1px solid #23232f",
+              background: "#141420",
+              cursor: "pointer",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontSize: "13px", color: "#f0f0f5", fontWeight: 600 }}>
+                Enable code generation agent
+              </span>
+              <span style={{ fontSize: "12px", color: "#9898a8" }}>
+                ON: generate runnable source files. OFF: blueprint-only flow.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={enableCodeGeneration}
+              onChange={(e) => setEnableCodeGeneration(e.target.checked)}
+              style={{ width: "18px", height: "18px", accentColor: "#6366f1", cursor: "pointer" }}
+            />
+          </label>
+
           {/* Error message */}
           {error && (
             <div
@@ -208,7 +243,7 @@ export function Home() {
               onClick={() => {
                 const demoId = crypto.randomUUID();
                 addToast("info", "Starting demo simulation...");
-                navigate(`/jobs/${demoId}?demo=true`);
+                navigate(`/jobs/${demoId}?demo=true&codegen=${enableCodeGeneration ? "1" : "0"}`);
               }}
             >
               🎬 Try Demo — No API Key Needed

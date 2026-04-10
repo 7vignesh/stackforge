@@ -567,6 +567,88 @@ function normalizeReviewerOutput(rawOutput: unknown): unknown {
   return { reviewerNotes };
 }
 
+function normalizeGeneratedSourceFile(
+  value: unknown,
+  index: number,
+): {
+  path: string;
+  content: string;
+  language?: string;
+} | undefined {
+  const file = asRecord(value);
+  if (file === undefined) {
+    return undefined;
+  }
+
+  const path = asNonEmptyString(file["path"]) ?? asNonEmptyString(file["filePath"]) ?? `src/generated/file-${index + 1}.txt`;
+  const content = asNonEmptyString(file["content"]) ?? asNonEmptyString(file["source"]);
+  if (content === undefined) {
+    return undefined;
+  }
+
+  const normalized: {
+    path: string;
+    content: string;
+    language?: string;
+  } = {
+    path,
+    content,
+  };
+
+  const language = asNonEmptyString(file["language"]);
+  if (language !== undefined) {
+    normalized.language = language;
+  }
+
+  return normalized;
+}
+
+function normalizeCodegenOutput(rawOutput: unknown): unknown {
+  const output = asRecord(rawOutput);
+  if (output === undefined) {
+    return rawOutput;
+  }
+
+  const hasKnownShape = hasAnyKey(output, ["generatedSourceFiles", "files"]);
+  if (!hasKnownShape) {
+    return rawOutput;
+  }
+
+  const directFiles = Array.isArray(output["generatedSourceFiles"])
+    ? output["generatedSourceFiles"]
+    : [];
+
+  const objectFiles = (() => {
+    const files = output["files"];
+    if (files === null || typeof files !== "object" || Array.isArray(files)) {
+      return [];
+    }
+
+    return Object.entries(files as Record<string, unknown>).map(([path, content]) => ({
+      path,
+      content: typeof content === "string" ? content : JSON.stringify(content, null, 2),
+    }));
+  })();
+
+  const generatedSourceFiles = [...directFiles, ...objectFiles]
+    .map((file, index) => normalizeGeneratedSourceFile(file, index))
+    .filter((file): file is {
+      path: string;
+      content: string;
+      language?: string;
+    } => file !== undefined);
+
+  return {
+    generatedSourceFiles: generatedSourceFiles.length > 0
+      ? generatedSourceFiles
+      : [{
+        path: "README.md",
+        content: "# Generated Project\n\nCode generation completed, but no files were returned by the model.",
+        language: "markdown",
+      }],
+  };
+}
+
 function normalizeAgentOutput(agentName: AgentName, rawOutput: unknown, input: unknown): unknown {
   switch (agentName) {
     case "planner":
@@ -581,6 +663,8 @@ function normalizeAgentOutput(agentName: AgentName, rawOutput: unknown, input: u
       return normalizeDevopsOutput(rawOutput);
     case "reviewer":
       return normalizeReviewerOutput(rawOutput);
+    case "codegen":
+      return normalizeCodegenOutput(rawOutput);
     default:
       return rawOutput;
   }
@@ -606,12 +690,18 @@ export type AgentRunHooks = {
   onToken?: (chunk: string) => void;
 };
 
+export type AgentRuntimeControls = {
+  tokenBudgetLimit?: number;
+  maxOutputTokensLimit?: number;
+};
+
 export async function runAgent<TInput, TOutput>(
   agentName: AgentName,
   input: TInput,
   provider: LLMProvider,
   cache: AgentCache,
   hooks?: AgentRunHooks,
+  runtimeControls?: AgentRuntimeControls,
 ): Promise<AgentRunResult<TOutput>> {
   const cacheKey = cache.hash({ agent: agentName, input });
   const cached = cache.get(cacheKey);
@@ -635,7 +725,7 @@ export async function runAgent<TInput, TOutput>(
   }
 
   const start = Date.now();
-  const optimized = optimizeAgentPayload(agentName, input);
+  const optimized = optimizeAgentPayload(agentName, input, runtimeControls);
   const providerCallInput = {
     agentName,
     input: optimized.optimizedInput,

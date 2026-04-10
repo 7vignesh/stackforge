@@ -85,10 +85,14 @@ const TelemetrySchema = z.object({
   agentsCompleted: z.number(),
   totalTokensUsed: z.number(),
   tokensByAgent: z.record(z.string(), z.number()),
-  providerBreakdown: z.object({
-    gemini: z.object({ calls: z.number(), tokens: z.number() }),
-    groq: z.object({ calls: z.number(), tokens: z.number() }),
-  }),
+  providerBreakdown: z.record(
+    z.string(),
+    z.object({ calls: z.number(), tokens: z.number() }),
+  ),
+  modelBreakdown: z.record(
+    z.string(),
+    z.object({ calls: z.number(), tokens: z.number() }),
+  ),
   estimatedCostINR: z.number(),
 });
 

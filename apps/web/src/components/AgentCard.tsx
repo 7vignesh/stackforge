@@ -9,6 +9,7 @@ const AGENT_META: Record<string, { icon: string; label: string; description: str
   frontend: { icon: "🎨", label: "Frontend",  description: "Creates frontend pages and components" },
   devops:   { icon: "🚀", label: "DevOps",    description: "Sets up CI/CD, Docker, and deployment" },
   reviewer: { icon: "🔍", label: "Reviewer",  description: "Reviews the entire blueprint for quality" },
+  codegen:  { icon: "🧩", label: "Codegen",   description: "Generates runnable source files from the blueprint" },
 };
 
 export function AgentCard({ agent }: { agent: AgentState }) {

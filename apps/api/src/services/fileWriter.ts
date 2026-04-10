@@ -55,6 +55,7 @@ type ExtractedPipeline = {
   routePlan: RouteSpec[];
   frontendPages: FrontendPageSpec[];
   infra: InfraSpec;
+  generatedSourceFiles: Array<{ path: string; content: string }>;
 };
 
 type GroupedRoutes = {
@@ -230,6 +231,22 @@ function extractFrontendPages(candidate: unknown): FrontendPageSpec[] {
     .filter((page): page is FrontendPageSpec => page !== null);
 }
 
+function extractGeneratedSourceFiles(candidate: unknown): Array<{ path: string; content: string }> {
+  return readArray(candidate)
+    .map((item): { path: string; content: string } | null => {
+      if (!isRecord(item)) return null;
+
+      const path = readString(item["path"]);
+      const content = readString(item["content"]);
+      if (!path || !content) {
+        return null;
+      }
+
+      return { path, content };
+    })
+    .filter((file): file is { path: string; content: string } => file !== null);
+}
+
 function extractPipeline(pipelineOutput: unknown): ExtractedPipeline {
   const root = isRecord(pipelineOutput) ? pipelineOutput : {};
   const primary = isRecord(root["blueprint"]) ? root["blueprint"] : root;
@@ -249,6 +266,9 @@ function extractPipeline(pipelineOutput: unknown): ExtractedPipeline {
   const entities = extractEntities(primary["entities"] ?? schema["entities"]);
   const routePlan = extractRoutes(primary["routePlan"] ?? api["routePlan"] ?? api["routes"]);
   const frontendPages = extractFrontendPages(primary["frontendPages"] ?? frontend["pages"]);
+  const generatedSourceFiles = extractGeneratedSourceFiles(
+    primary["generatedSourceFiles"] ?? root["generatedSourceFiles"],
+  );
 
   const dockerfile = readString(devops["dockerfile"]) || undefined;
   const dockerCompose =
@@ -283,6 +303,7 @@ function extractPipeline(pipelineOutput: unknown): ExtractedPipeline {
     routePlan,
     frontendPages,
     infra,
+    generatedSourceFiles,
   };
 }
 
@@ -649,6 +670,19 @@ function renderFrontendPage(page: FrontendPageSpec): string {
 
 function buildProjectFilesInternal(pipelineOutput: unknown): GeneratedProjectFiles {
   const extracted = extractPipeline(pipelineOutput);
+
+  if (extracted.generatedSourceFiles.length > 0) {
+    const directFiles: Record<string, string> = {};
+    for (const file of extracted.generatedSourceFiles) {
+      directFiles[file.path] = file.content;
+    }
+
+    return {
+      projectName: toKebabCase(extracted.projectName),
+      files: directFiles,
+    };
+  }
+
   const groupedRoutes = groupRoutes(extracted.routePlan);
   const files: Record<string, string> = {
     "package.json": renderPackageJson(extracted),

@@ -22,14 +22,20 @@ export interface JobStreamState {
   connected: boolean;
 }
 
-const AGENT_ORDER = ["planner", "schema", "api", "frontend", "devops", "reviewer"] as const;
+const AGENT_ORDER = ["planner", "schema", "api", "frontend", "devops", "reviewer", "codegen"] as const;
 
-function createInitialAgents(): AgentState[] {
-  return AGENT_ORDER.map((name) => ({ name, status: "waiting" as AgentStatus }));
+function createInitialAgents(includeCodegen: boolean): AgentState[] {
+  return AGENT_ORDER
+    .filter((name) => includeCodegen || name !== "codegen")
+    .map((name) => ({ name, status: "waiting" as AgentStatus }));
 }
 
-export function useJobStream(jobId: string | undefined, isDemo = false): JobStreamState {
-  const [agents, setAgents] = useState<AgentState[]>(createInitialAgents);
+export function useJobStream(
+  jobId: string | undefined,
+  isDemo = false,
+  includeCodegen = true,
+): JobStreamState {
+  const [agents, setAgents] = useState<AgentState[]>(() => createInitialAgents(includeCodegen));
   const [jobStatus, setJobStatus] = useState<JobStreamState["jobStatus"]>("queued");
   const [jobError, setJobError] = useState<string | undefined>();
   const [connected, setConnected] = useState(false);
@@ -134,6 +140,7 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
 
       case "job_completed":
         setJobStatus("completed");
+        setAgents((prev) => prev.filter((agent) => agent.status !== "waiting"));
         break;
 
       case "job_failed": {
@@ -149,7 +156,7 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
   useEffect(() => {
     if (!jobId || !isDemo) return;
 
-    setAgents(createInitialAgents());
+    setAgents(createInitialAgents(includeCodegen));
     setJobStatus("queued");
     setJobError(undefined);
     setConnected(true);
@@ -161,13 +168,13 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
     );
 
     return cancel;
-  }, [jobId, isDemo, handleEvent]);
+  }, [jobId, isDemo, includeCodegen, handleEvent]);
 
   // Real SSE mode
   useEffect(() => {
     if (!jobId || isDemo) return;
 
-    setAgents(createInitialAgents());
+    setAgents(createInitialAgents(includeCodegen));
     setJobStatus("queued");
     setJobError(undefined);
 
@@ -210,7 +217,7 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
       source.close();
       sourceRef.current = null;
     };
-  }, [jobId, isDemo, handleEvent]);
+  }, [jobId, isDemo, includeCodegen, handleEvent]);
 
   return { agents, jobStatus, jobError, connected };
 }

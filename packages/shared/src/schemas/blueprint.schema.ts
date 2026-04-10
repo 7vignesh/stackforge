@@ -68,6 +68,12 @@ const GeneratedFileSchema = z.object({
   description: z.string(),
 });
 
+const GeneratedSourceFileSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+  language: z.string().optional(),
+});
+
 const ReviewerNoteSchema = z.object({
   severity: z.enum(["info", "warning", "error"]),
   agent: z.string(),
@@ -86,6 +92,7 @@ export const BlueprintSchema = z.object({
   infraPlan: InfraPlanSchema,
   generatedFilesPlan: z.array(GeneratedFileSchema),
   reviewerNotes: z.array(ReviewerNoteSchema),
+  generatedSourceFiles: z.array(GeneratedSourceFileSchema).optional(),
 });
 
 export type Blueprint = z.infer<typeof BlueprintSchema>;
@@ -99,3 +106,4 @@ export type FrontendPage = z.infer<typeof FrontendPageSchema>;
 export type InfraPlan = z.infer<typeof InfraPlanSchema>;
 export type GeneratedFile = z.infer<typeof GeneratedFileSchema>;
 export type ReviewerNote = z.infer<typeof ReviewerNoteSchema>;
+export type GeneratedSourceFile = z.infer<typeof GeneratedSourceFileSchema>;

@@ -10,7 +10,7 @@ export function generateController(req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  const { prompt, projectName } = parsed.data;
+  const { prompt, projectName, execution } = parsed.data;
   const resolvedName = projectName ?? prompt.slice(0, 40).replace(/\s+/g, "-").toLowerCase();
   const runtime = getRuntimeStatus();
 
@@ -23,7 +23,11 @@ export function generateController(req: Request, res: Response, next: NextFuncti
   }
 
   try {
-    const job = generateProject(prompt, resolvedName);
+    const job = generateProject(
+      prompt,
+      resolvedName,
+      execution !== undefined ? { execution } : undefined,
+    );
     res.status(202).json({
       jobId: job.id,
       status: job.status,

@@ -1,4 +1,4 @@
-import type { SchemaInput, SchemaOutput } from "@stackforge/shared";
+import type { CodegenInput, CodegenOutput } from "@stackforge/shared";
 import type { LLMProvider } from "../provider/provider.interface.js";
 import type { AgentCache } from "../cache/agent.cache.js";
 import {
@@ -8,15 +8,15 @@ import {
   type AgentRuntimeControls,
 } from "./base.agent.js";
 
-export function runSchemaAgent(
-  input: SchemaInput,
+export function runCodegenAgent(
+  input: CodegenInput,
   provider: LLMProvider,
   cache: AgentCache,
   hooks?: AgentRunHooks,
   runtimeControls?: AgentRuntimeControls,
-): Promise<AgentRunResult<SchemaOutput>> {
-  return runAgent<SchemaInput, SchemaOutput>(
-    "schema",
+): Promise<AgentRunResult<CodegenOutput>> {
+  return runAgent<CodegenInput, CodegenOutput>(
+    "codegen",
     input,
     provider,
     cache,

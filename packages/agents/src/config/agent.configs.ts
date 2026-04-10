@@ -79,4 +79,17 @@ export const AGENT_CONFIGS: Record<AgentName, AgentConfig> = {
     budgetOverflowRetries: 2,
     retries: 1,
   },
+  codegen: {
+    name: "codegen",
+    description: "Generates concrete source files from the finalized blueprint",
+    tokenBudget: 2200,
+    model: "openai/gpt-4o-mini",
+    maxInputTokens: 1100,
+    maxOutputTokens: 1200,
+    minOutputTokens: 280,
+    temperature: 0.1,
+    compressionLevel: "medium",
+    budgetOverflowRetries: 3,
+    retries: 1,
+  },
 };

@@ -14,12 +14,35 @@ type RunTelemetry = {
   agentsCompleted: number;
   totalTokensUsed: number;
   tokensByAgent: Record<string, number>;
-  providerBreakdown: {
-    gemini: ProviderStats;
-    groq: ProviderStats;
-  };
+  providerBreakdown: Record<string, ProviderStats>;
+  modelBreakdown: Record<string, ProviderStats>;
   estimatedCostINR: number;
 };
+
+type BreakdownEntry = {
+  name: string;
+  calls: number;
+  tokens: number;
+};
+
+function toDisplayName(value: string): string {
+  if (value.length === 0) {
+    return "unknown";
+  }
+
+  return value
+    .split(/[-_/]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function topEntries(map: Record<string, ProviderStats>, max = 5): BreakdownEntry[] {
+  return Object.entries(map)
+    .map(([name, stats]) => ({ name, calls: stats.calls, tokens: stats.tokens }))
+    .sort((a, b) => b.calls - a.calls || b.tokens - a.tokens)
+    .slice(0, max);
+}
 
 function formatInt(value: number): string {
   return value.toLocaleString("en-IN");
@@ -115,20 +138,16 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
     return () => window.clearInterval(interval);
   }, [telemetry]);
 
-  const providerRatios = useMemo(() => {
-    const geminiCalls = telemetry?.providerBreakdown.gemini.calls ?? 0;
-    const groqCalls = telemetry?.providerBreakdown.groq.calls ?? 0;
-    const total = geminiCalls + groqCalls;
-
-    if (total === 0) {
-      return { gemini: 0, groq: 0 };
-    }
-
-    return {
-      gemini: (geminiCalls / total) * 100,
-      groq: (groqCalls / total) * 100,
-    };
-  }, [telemetry]);
+  const providerRows = useMemo(() => topEntries(telemetry?.providerBreakdown ?? {}), [telemetry]);
+  const modelRows = useMemo(() => topEntries(telemetry?.modelBreakdown ?? {}), [telemetry]);
+  const providerTotalCalls = useMemo(
+    () => providerRows.reduce((sum, row) => sum + row.calls, 0),
+    [providerRows],
+  );
+  const modelTotalCalls = useMemo(
+    () => modelRows.reduce((sum, row) => sum + row.calls, 0),
+    [modelRows],
+  );
 
   if (!jobId || isDemo || telemetry === null) {
     return null;
@@ -179,19 +198,34 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
 
       <div style={{ marginTop: "12px" }}>
         <div style={{ fontSize: "13px", color: "#9898a8", marginBottom: "10px" }}>Provider breakdown:</div>
+        {providerRows.length === 0 && (
+          <div style={{ fontSize: "12px", color: "#6f6f84" }}>No provider calls yet</div>
+        )}
+        {providerRows.map((row, index) => (
+          <ProviderRow
+            key={`provider-${row.name}`}
+            name={toDisplayName(row.name)}
+            calls={row.calls}
+            ratio={providerTotalCalls > 0 ? (row.calls / providerTotalCalls) * 100 : 0}
+            color={index % 2 === 0 ? "#3b82f6" : "#a855f7"}
+          />
+        ))}
+      </div>
 
-        <ProviderRow
-          name="Gemini"
-          calls={telemetry.providerBreakdown.gemini.calls}
-          ratio={providerRatios.gemini}
-          colorClass="bg-blue-500"
-        />
-        <ProviderRow
-          name="Groq"
-          calls={telemetry.providerBreakdown.groq.calls}
-          ratio={providerRatios.groq}
-          colorClass="bg-purple-500"
-        />
+      <div style={{ marginTop: "10px" }}>
+        <div style={{ fontSize: "13px", color: "#9898a8", marginBottom: "10px" }}>Model breakdown:</div>
+        {modelRows.length === 0 && (
+          <div style={{ fontSize: "12px", color: "#6f6f84" }}>No model calls yet</div>
+        )}
+        {modelRows.map((row, index) => (
+          <ProviderRow
+            key={`model-${row.name}`}
+            name={row.name}
+            calls={row.calls}
+            ratio={modelTotalCalls > 0 ? (row.calls / modelTotalCalls) * 100 : 0}
+            color={index % 2 === 0 ? "#22c55e" : "#14b8a6"}
+          />
+        ))}
       </div>
     </aside>
   );
@@ -219,18 +253,29 @@ function ProviderRow({
   name,
   calls,
   ratio,
-  colorClass,
+  color,
 }: {
   name: string;
   calls: number;
   ratio: number;
-  colorClass: "bg-blue-500" | "bg-purple-500";
+  color: string;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "58px 1fr auto", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-      <span style={{ fontSize: "12px", color: "#f0f0f5" }}>{name}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(84px, 1fr) 2fr auto", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+      <span
+        title={name}
+        style={{
+          fontSize: "12px",
+          color: "#f0f0f5",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {name}
+      </span>
       <div style={{ background: "#1d1d2a", borderRadius: "999px", height: "10px", overflow: "hidden" }}>
-        <div className={colorClass} style={{ width: `${ratio}%`, height: "100%", transition: "width 300ms ease" }} />
+        <div style={{ width: `${ratio}%`, height: "100%", transition: "width 300ms ease", background: color }} />
       </div>
       <span style={{ fontSize: "12px", color: "#9898a8", minWidth: "56px", textAlign: "right" }}>{calls} calls</span>
     </div>
