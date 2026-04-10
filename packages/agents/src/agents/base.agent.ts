@@ -602,11 +602,16 @@ export type AgentRunResult<T> = {
   model: string;
 };
 
+export type AgentRunHooks = {
+  onToken?: (chunk: string) => void;
+};
+
 export async function runAgent<TInput, TOutput>(
   agentName: AgentName,
   input: TInput,
   provider: LLMProvider,
   cache: AgentCache,
+  hooks?: AgentRunHooks,
 ): Promise<AgentRunResult<TOutput>> {
   const cacheKey = cache.hash({ agent: agentName, input });
   const cached = cache.get(cacheKey);
@@ -631,7 +636,7 @@ export async function runAgent<TInput, TOutput>(
 
   const start = Date.now();
   const optimized = optimizeAgentPayload(agentName, input);
-  const response = await provider.call({
+  const providerCallInput = {
     agentName,
     input: optimized.optimizedInput,
     options: {
@@ -642,7 +647,10 @@ export async function runAgent<TInput, TOutput>(
       maxOutputTokens: optimized.maxOutputTokens,
       temperature: optimized.temperature,
     },
-  });
+    ...(hooks?.onToken !== undefined ? { onToken: hooks.onToken } : {}),
+  };
+
+  const response = await provider.call(providerCallInput);
   const durationMs = Date.now() - start;
   const schema = AgentOutputSchemas[agentName];
   const normalizedOutput = normalizeAgentOutput(agentName, response.output, input);

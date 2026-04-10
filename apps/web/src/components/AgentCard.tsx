@@ -13,6 +13,12 @@ const AGENT_META: Record<string, { icon: string; label: string; description: str
 
 export function AgentCard({ agent }: { agent: AgentState }) {
   const meta = AGENT_META[agent.name] ?? { icon: "🤖", label: agent.name, description: "" };
+  const [expanded, setExpanded] = React.useState(false);
+
+  const streamText = agent.streamBuffer ?? "";
+  const streamLines = streamText.split("\n");
+  const isStreamCollapsed = agent.status === "completed" && streamLines.length > 5 && !expanded;
+  const visibleStream = isStreamCollapsed ? streamLines.slice(0, 5).join("\n") : streamText;
 
   const borderColor =
     agent.status === "running"
@@ -68,6 +74,16 @@ export function AgentCard({ agent }: { agent: AgentState }) {
 
         {/* Duration / details */}
         <div style={{ textAlign: "right", flexShrink: 0 }}>
+          {agent.status === "running" && (
+            <div style={{ fontSize: "12px", color: "#38bdf8", marginBottom: "2px", fontWeight: 600 }}>
+              ✦ running...
+            </div>
+          )}
+          {agent.status === "completed" && (
+            <div style={{ fontSize: "12px", color: "#34d399", marginBottom: "2px", fontWeight: 700 }}>
+              ✓ Done
+            </div>
+          )}
           {agent.durationMs != null && (
             <span style={{ fontSize: "13px", color: "#9898a8", fontVariantNumeric: "tabular-nums" }}>
               {(agent.durationMs / 1000).toFixed(1)}s
@@ -83,6 +99,48 @@ export function AgentCard({ agent }: { agent: AgentState }) {
           )}
         </div>
       </div>
+
+      {(streamText.length > 0 || agent.status === "running") && (
+        <div style={{ marginTop: "12px", borderTop: "1px solid rgba(35, 35, 47, 0.65)", paddingTop: "10px" }}>
+          <pre
+            style={{
+              margin: 0,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              fontSize: "13px",
+              lineHeight: 1.45,
+              color: "#b8bfd3",
+              whiteSpace: "pre-wrap",
+              maxHeight: "200px",
+              overflowY: "auto",
+              background: "rgba(13, 13, 22, 0.65)",
+              border: "1px solid rgba(99, 102, 241, 0.16)",
+              borderRadius: "10px",
+              padding: "10px 12px",
+            }}
+          >
+            {visibleStream}
+            {agent.status === "running" && <span style={{ opacity: 0.85 }}> _</span>}
+          </pre>
+
+          {agent.status === "completed" && streamLines.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              style={{
+                marginTop: "8px",
+                border: "none",
+                background: "transparent",
+                color: "#818cf8",
+                fontSize: "12px",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

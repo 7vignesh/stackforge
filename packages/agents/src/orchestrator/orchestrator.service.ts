@@ -30,6 +30,26 @@ function agentStarted(jobId: string, agent: AgentName): SSEEvent {
   return { type: "agent_started", jobId, agent, timestamp: now(), payload: {} };
 }
 
+function agentToken(jobId: string, agentId: AgentName, token: string): SSEEvent {
+  return {
+    type: "agent_token",
+    jobId,
+    agentId,
+    token,
+    timestamp: Date.now(),
+  };
+}
+
+function agentComplete(jobId: string, agentId: AgentName, fullOutput: unknown): SSEEvent {
+  return {
+    type: "agent_complete",
+    jobId,
+    agentId,
+    fullOutput,
+    timestamp: Date.now(),
+  };
+}
+
 function agentCompleted(
   jobId: string,
   agent: AgentName,
@@ -74,7 +94,7 @@ async function runWithEmit<T>(
   jobId: string,
   agentName: AgentName,
   emit: (event: SSEEvent) => void,
-  fn: () => Promise<{
+  fn: (hooks: { onToken: (chunk: string) => void }) => Promise<{
     output: T;
     cached: boolean;
     durationMs: number;
@@ -91,7 +111,15 @@ async function runWithEmit<T>(
 ): Promise<T> {
   emit(agentStarted(jobId, agentName));
   try {
-    const result = await fn();
+    const result = await fn({
+      onToken: (chunk) => {
+        if (chunk.length === 0) {
+          return;
+        }
+        emit(agentToken(jobId, agentName, chunk));
+      },
+    });
+    emit(agentComplete(jobId, agentName, result.output));
     emit(
       agentCompleted(
         jobId,
@@ -121,26 +149,27 @@ export async function runOrchestrator(options: OrchestratorOptions): Promise<Blu
   const { jobId, prompt, projectName, emit, provider, cache } = options;
 
   // 1. Planner — resolves stack and folder structure
-  const plannerOutput = await runWithEmit(jobId, "planner", emit, () =>
-    runPlannerAgent({ prompt, projectName }, provider, cache),
+  const plannerOutput = await runWithEmit(jobId, "planner", emit, (hooks) =>
+    runPlannerAgent({ prompt, projectName }, provider, cache, hooks),
   );
 
   // 2. Schema — designs entities using the resolved stack
-  const schemaOutput = await runWithEmit(jobId, "schema", emit, () =>
-    runSchemaAgent({ prompt, projectName, stack: plannerOutput.stack }, provider, cache),
+  const schemaOutput = await runWithEmit(jobId, "schema", emit, (hooks) =>
+    runSchemaAgent({ prompt, projectName, stack: plannerOutput.stack }, provider, cache, hooks),
   );
 
   // 3. API — plans routes using entities + stack (no schema raw output passed)
-  const apiOutput = await runWithEmit(jobId, "api", emit, () =>
+  const apiOutput = await runWithEmit(jobId, "api", emit, (hooks) =>
     runApiAgent(
       { prompt, entities: schemaOutput.entities, stack: plannerOutput.stack },
       provider,
       cache,
+      hooks,
     ),
   );
 
   // 4. Frontend — plans pages using entities + routes + stack
-  const frontendOutput = await runWithEmit(jobId, "frontend", emit, () =>
+  const frontendOutput = await runWithEmit(jobId, "frontend", emit, (hooks) =>
     runFrontendAgent(
       {
         prompt,
@@ -150,15 +179,17 @@ export async function runOrchestrator(options: OrchestratorOptions): Promise<Blu
       },
       provider,
       cache,
+      hooks,
     ),
   );
 
   // 5. Devops — plans infra using stack + entities only (no page/route details)
-  const devopsOutput = await runWithEmit(jobId, "devops", emit, () =>
+  const devopsOutput = await runWithEmit(jobId, "devops", emit, (hooks) =>
     runDevopsAgent(
       { prompt, stack: plannerOutput.stack, entities: schemaOutput.entities },
       provider,
       cache,
+      hooks,
     ),
   );
 
@@ -176,8 +207,8 @@ export async function runOrchestrator(options: OrchestratorOptions): Promise<Blu
     generatedFilesPlan: devopsOutput.generatedFilesPlan,
   };
 
-  const reviewerOutput = await runWithEmit(jobId, "reviewer", emit, () =>
-    runReviewerAgent(reviewerInput, provider, cache),
+  const reviewerOutput = await runWithEmit(jobId, "reviewer", emit, (hooks) =>
+    runReviewerAgent(reviewerInput, provider, cache, hooks),
   );
 
   // Aggregate — merge per-agent outputs into final blueprint

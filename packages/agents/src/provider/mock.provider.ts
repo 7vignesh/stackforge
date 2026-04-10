@@ -59,9 +59,18 @@ function dispatch(agentName: AgentName, input: unknown): unknown {
 export class MockProvider implements LLMProvider {
   readonly name = "mock";
 
-  async call({ agentName, input, options }: ProviderCallInput): Promise<ProviderCallOutput> {
+  async call({ agentName, input, options, onToken }: ProviderCallInput): Promise<ProviderCallOutput> {
     const [min, max] = SIMULATED_DELAY_MS[agentName];
     const start = Date.now();
+    const output = dispatch(agentName, input);
+
+    const streamText = JSON.stringify(output, null, 2);
+    const chunkSize = 18;
+    for (let i = 0; i < streamText.length; i += chunkSize) {
+      onToken?.(streamText.slice(i, i + chunkSize));
+      await simulate(12, 24);
+    }
+
     await simulate(min, max);
     const durationMs = Date.now() - start;
 
@@ -69,7 +78,7 @@ export class MockProvider implements LLMProvider {
     const outputTokens = SIMULATED_TOKENS[agentName];
 
     return {
-      output: dispatch(agentName, input),
+      output,
       tokensUsed: inputTokens + outputTokens,
       durationMs,
       inputTokens,

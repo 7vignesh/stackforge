@@ -46,6 +46,22 @@ export const AgentFailedEventSchema = SSEBaseSchema.extend({
   }),
 });
 
+export const AgentTokenEventSchema = z.object({
+  type: z.literal("agent_token"),
+  jobId: z.string().uuid(),
+  agentId: AgentNameSchema,
+  token: z.string(),
+  timestamp: z.number(),
+});
+
+export const AgentCompleteEventSchema = z.object({
+  type: z.literal("agent_complete"),
+  jobId: z.string().uuid(),
+  agentId: AgentNameSchema,
+  fullOutput: z.unknown(),
+  timestamp: z.number(),
+});
+
 export const JobCompletedEventSchema = SSEBaseSchema.extend({
   type: z.literal("job_completed"),
   payload: z.object({
@@ -60,19 +76,47 @@ export const JobFailedEventSchema = SSEBaseSchema.extend({
   }),
 });
 
+const TelemetrySchema = z.object({
+  runId: z.string().uuid(),
+  startTime: z.number(),
+  endTime: z.number().nullable(),
+  elapsedTimeMs: z.number(),
+  agentsTotal: z.number(),
+  agentsCompleted: z.number(),
+  totalTokensUsed: z.number(),
+  tokensByAgent: z.record(z.string(), z.number()),
+  providerBreakdown: z.object({
+    gemini: z.object({ calls: z.number(), tokens: z.number() }),
+    groq: z.object({ calls: z.number(), tokens: z.number() }),
+  }),
+  estimatedCostINR: z.number(),
+});
+
+export const TelemetryUpdateEventSchema = SSEBaseSchema.extend({
+  type: z.literal("telemetry_update"),
+  data: TelemetrySchema,
+});
+
 export const SSEEventSchema = z.discriminatedUnion("type", [
   JobCreatedEventSchema,
   AgentStartedEventSchema,
+  AgentTokenEventSchema,
+  AgentCompleteEventSchema,
   AgentCompletedEventSchema,
   AgentFailedEventSchema,
   JobCompletedEventSchema,
   JobFailedEventSchema,
+  TelemetryUpdateEventSchema,
 ]);
 
 export type SSEEvent = z.infer<typeof SSEEventSchema>;
 export type JobCreatedEvent = z.infer<typeof JobCreatedEventSchema>;
 export type AgentStartedEvent = z.infer<typeof AgentStartedEventSchema>;
+export type AgentTokenEvent = z.infer<typeof AgentTokenEventSchema>;
+export type AgentCompleteEvent = z.infer<typeof AgentCompleteEventSchema>;
 export type AgentCompletedEvent = z.infer<typeof AgentCompletedEventSchema>;
 export type AgentFailedEvent = z.infer<typeof AgentFailedEventSchema>;
 export type JobCompletedEvent = z.infer<typeof JobCompletedEventSchema>;
 export type JobFailedEvent = z.infer<typeof JobFailedEventSchema>;
+export type TelemetryUpdateEvent = z.infer<typeof TelemetryUpdateEventSchema>;
+export type Telemetry = z.infer<typeof TelemetrySchema>;

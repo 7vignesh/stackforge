@@ -12,6 +12,7 @@ export interface AgentState {
   error?: string;
   model?: string;
   totalTokens?: number;
+  streamBuffer?: string;
 }
 
 export interface JobStreamState {
@@ -46,9 +47,57 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
         setAgents((prev) =>
           prev.map((a) =>
             a.name === data["agent"]
-              ? { ...a, status: "running" as AgentStatus, startedAt: data["timestamp"] as string }
+              ? {
+                  ...a,
+                  status: "running" as AgentStatus,
+                  startedAt: data["timestamp"] as string,
+                  streamBuffer: "",
+                }
               : a,
           ),
+        );
+        break;
+
+      case "agent_token":
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.name === data["agentId"]
+              ? {
+                  ...a,
+                  status: "running" as AgentStatus,
+                  streamBuffer: `${a.streamBuffer ?? ""}${String(data["token"] ?? "")}`,
+                }
+              : a,
+          ),
+        );
+        break;
+
+      case "agent_complete":
+        setAgents((prev) =>
+          prev.map((a) => {
+            if (a.name !== data["agentId"]) {
+              return a;
+            }
+
+            const existingBuffer = a.streamBuffer ?? "";
+            const fallbackOutput = (() => {
+              if (existingBuffer.length > 0) {
+                return existingBuffer;
+              }
+
+              try {
+                return JSON.stringify(data["fullOutput"], null, 2);
+              } catch {
+                return String(data["fullOutput"] ?? "");
+              }
+            })();
+
+            return {
+              ...a,
+              status: a.status === "failed" ? "failed" : "completed",
+              streamBuffer: fallbackOutput,
+            };
+          }),
         );
         break;
 
@@ -131,6 +180,12 @@ export function useJobStream(jobId: string | undefined, isDemo = false): JobStre
       handleEvent(JSON.parse(e.data) as Record<string, unknown>);
     });
     source.addEventListener("agent_started", (e) => {
+      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
+    });
+    source.addEventListener("agent_token", (e) => {
+      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
+    });
+    source.addEventListener("agent_complete", (e) => {
       handleEvent(JSON.parse(e.data) as Record<string, unknown>);
     });
     source.addEventListener("agent_completed", (e) => {

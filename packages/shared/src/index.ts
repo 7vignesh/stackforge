@@ -17,19 +17,26 @@ export {
   SSEEventSchema,
   JobCreatedEventSchema,
   AgentStartedEventSchema,
+  AgentTokenEventSchema,
+  AgentCompleteEventSchema,
   AgentCompletedEventSchema,
   AgentFailedEventSchema,
   JobCompletedEventSchema,
   JobFailedEventSchema,
+  TelemetryUpdateEventSchema,
 } from "./schemas/sse.schema.js";
 export type {
   SSEEvent,
   JobCreatedEvent,
   AgentStartedEvent,
+  AgentTokenEvent,
+  AgentCompleteEvent,
   AgentCompletedEvent,
   AgentFailedEvent,
   JobCompletedEvent,
   JobFailedEvent,
+  TelemetryUpdateEvent,
+  Telemetry,
 } from "./schemas/sse.schema.js";
 
 // blueprint schema

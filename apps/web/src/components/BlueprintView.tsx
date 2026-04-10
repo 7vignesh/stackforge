@@ -2,9 +2,19 @@ import React from "react";
 import { Card, Button } from "@stackforge/ui";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { FileTree } from "./FileTree";
-import type { Blueprint } from "../lib/api";
+import { useToast } from "@stackforge/ui";
+import { downloadProjectZip, pushProjectToGithub, type Blueprint } from "../lib/api";
 
 export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
+  const { addToast } = useToast();
+  const [isZipLoading, setIsZipLoading] = React.useState(false);
+  const [isPushModalOpen, setIsPushModalOpen] = React.useState(false);
+  const [githubToken, setGithubToken] = React.useState("");
+  const [tokenAcknowledged, setTokenAcknowledged] = React.useState(false);
+  const [isPushing, setIsPushing] = React.useState(false);
+  const [pushProgress, setPushProgress] = React.useState<string[]>([]);
+  const [pushedRepoUrl, setPushedRepoUrl] = React.useState<string | null>(null);
+
   function handleDownload() {
     const blob = new Blob([JSON.stringify(blueprint, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -13,6 +23,93 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
     a.download = `${blueprint.projectName}-blueprint.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleZipDownload() {
+    try {
+      setIsZipLoading(true);
+      const { blob, filename } = await downloadProjectZip(blueprint as unknown as Record<string, unknown>);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      addToast("success", "Your project ZIP is ready!");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create project ZIP";
+      addToast("error", message);
+    } finally {
+      setIsZipLoading(false);
+    }
+  }
+
+  function openPushModal() {
+    setIsPushModalOpen(true);
+    setPushProgress([]);
+    setPushedRepoUrl(null);
+  }
+
+  function closePushModal() {
+    if (isPushing) {
+      return;
+    }
+
+    setIsPushModalOpen(false);
+    setGithubToken("");
+    setTokenAcknowledged(false);
+    setPushProgress([]);
+    setPushedRepoUrl(null);
+  }
+
+  async function handlePushNow(event: React.FormEvent) {
+    event.preventDefault();
+
+    const token = githubToken.trim();
+    if (token.length === 0) {
+      addToast("error", "Enter a GitHub Personal Access Token");
+      return;
+    }
+
+    if (!tokenAcknowledged) {
+      addToast("error", "Confirm token usage acknowledgment before pushing");
+      return;
+    }
+
+    try {
+      setIsPushing(true);
+      setPushProgress([]);
+      setPushedRepoUrl(null);
+
+      // Clear token from component state immediately after starting request.
+      setGithubToken("");
+
+      const result = await pushProjectToGithub(
+        {
+          pipelineOutput: blueprint,
+          projectName: blueprint.projectName,
+          githubToken: token,
+        },
+        (streamEvent) => {
+          if (streamEvent.type === "progress" && streamEvent.message) {
+            setPushProgress((prev) => [...prev, `✓ ${streamEvent.message}`]);
+          }
+
+          if (streamEvent.type === "result" && streamEvent.repoUrl) {
+            setPushProgress((prev) => [...prev, "✓ Push complete"]);
+          }
+        },
+      );
+
+      setPushedRepoUrl(result.repoUrl);
+      addToast("success", "Project pushed to GitHub");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to push to GitHub";
+      setPushProgress((prev) => [...prev, `✗ ${message}`]);
+      addToast("error", message);
+    } finally {
+      setIsPushing(false);
+    }
   }
 
   return (
@@ -45,9 +142,20 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
                 ))}
             </div>
           </div>
-          <Button variant="secondary" onClick={handleDownload}>
-            ⬇ Download JSON
-          </Button>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <Button variant="secondary" onClick={openPushModal}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                <GitHubIcon />
+                Push to GitHub
+              </span>
+            </Button>
+            <Button variant="secondary" loading={isZipLoading} onClick={handleZipDownload}>
+              Download ZIP
+            </Button>
+            <Button variant="ghost" onClick={handleDownload}>
+              Download JSON
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -227,7 +335,144 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
       <CollapsibleSection title="Project Structure" icon="📂" count={blueprint.folderStructure.length}>
         <FileTree nodes={blueprint.folderStructure} />
       </CollapsibleSection>
+
+      {isPushModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(8, 9, 14, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: "20px",
+          }}
+          onClick={closePushModal}
+        >
+          <div
+            style={{
+              width: "min(680px, 100%)",
+              background: "#11131b",
+              border: "1px solid #2a2a38",
+              borderRadius: "16px",
+              padding: "18px",
+              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.35)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h3 style={{ margin: 0, color: "#f0f0f5", fontSize: "18px", fontWeight: 700 }}>
+                Enter your GitHub Personal Access Token
+              </h3>
+              <p style={{ margin: "6px 0 0", color: "#9898a8", fontSize: "13px" }}>
+                Token is used only for this push request and is never persisted by StackForge.
+              </p>
+            </div>
+
+            <form onSubmit={handlePushNow} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span style={{ color: "#d6d6e5", fontSize: "13px", fontWeight: 600 }}>GitHub PAT</span>
+                <input
+                  type="password"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  placeholder="ghp_..."
+                  disabled={isPushing}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    border: "1px solid #2f3242",
+                    background: "#0c0e15",
+                    color: "#f0f0f5",
+                    fontSize: "13px",
+                  }}
+                />
+              </label>
+
+              <a
+                href="https://github.com/settings/tokens/new"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#7dd3fc", fontSize: "12px", textDecoration: "none" }}
+              >
+                Create a GitHub Personal Access Token
+              </a>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#c7c7d7", fontSize: "12px" }}>
+                <input
+                  type="checkbox"
+                  checked={tokenAcknowledged}
+                  onChange={(e) => setTokenAcknowledged(e.target.checked)}
+                  disabled={isPushing}
+                />
+                I understand this token is used only for this push and not stored.
+              </label>
+
+              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                <Button type="button" variant="ghost" onClick={closePushModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="secondary" loading={isPushing}>
+                  Push Now
+                </Button>
+              </div>
+            </form>
+
+            {(pushProgress.length > 0 || isPushing || pushedRepoUrl) && (
+              <div style={{ borderTop: "1px solid #23232f", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ color: "#d6d6e5", fontSize: "13px", fontWeight: 600 }}>Push Progress</div>
+                <div
+                  style={{
+                    background: "#0a0b11",
+                    border: "1px solid #1d1f2a",
+                    borderRadius: "10px",
+                    padding: "10px 12px",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  {pushProgress.map((item, idx) => (
+                    <div key={`${item}-${idx}`} style={{ color: "#cfd9ff", fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }}>
+                      {item}
+                    </div>
+                  ))}
+                  {isPushing && (
+                    <div style={{ color: "#7dd3fc", fontSize: "12px" }}>• Waiting for next update...</div>
+                  )}
+                </div>
+
+                {pushedRepoUrl && (
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <a href={pushedRepoUrl} target="_blank" rel="noreferrer" style={{ color: "#86efac", fontSize: "13px", textDecoration: "none" }}>
+                      {pushedRepoUrl}
+                    </a>
+                    <Button type="button" variant="secondary" onClick={() => window.open(pushedRepoUrl, "_blank", "noopener,noreferrer")}>
+                      🎉 Pushed! View on GitHub →
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.11 0 0 .67-.21 2.2.82A7.6 7.6 0 0 1 8 4.77c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.91.08 2.11.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
   );
 }
 

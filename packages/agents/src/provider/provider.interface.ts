@@ -13,6 +13,7 @@ export type ProviderCallInput = {
   agentName: AgentName;
   input: unknown;
   options: ProviderCallOptions;
+  onToken?: (chunk: string) => void;
 };
 
 export type ProviderCallOutput = {
