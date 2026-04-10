@@ -1,5 +1,10 @@
 const API_BASE = "/api";
 
+export interface DownloadZipResponse {
+  blob: Blob;
+  filename: string;
+}
+
 export interface GenerateResponse {
   jobId: string;
   status: string;
@@ -108,4 +113,26 @@ export async function getRuntime(): Promise<RuntimeResponse> {
   }
 
   return res.json() as Promise<RuntimeResponse>;
+}
+
+export async function downloadProjectZip(pipelineOutput: Record<string, unknown>): Promise<DownloadZipResponse> {
+  const res = await fetch(`${API_BASE}/download`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pipelineOutput }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
+  }
+
+  const contentDisposition = res.headers.get("Content-Disposition") ?? "";
+  const filenameMatch = /filename="?([^\"]+)"?/i.exec(contentDisposition);
+  const filename = filenameMatch?.[1] ?? "stackforge-project.zip";
+
+  return {
+    blob: await res.blob(),
+    filename,
+  };
 }

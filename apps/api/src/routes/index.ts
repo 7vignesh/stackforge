@@ -6,6 +6,7 @@ import {
 	getJobController,
 	streamController,
 } from "../controllers/jobs.controller.js";
+import { downloadRouter } from "./download.js";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.get("/runtime", runtimeController);
 router.get("/jobs", listJobsController);
 router.get("/jobs/:jobId", getJobController);
 router.get("/stream/:jobId", streamController);
+router.use(downloadRouter);
 
 export { router };

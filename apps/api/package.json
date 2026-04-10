@@ -13,6 +13,7 @@
   "dependencies": {
     "@stackforge/agents": "workspace:*",
     "@stackforge/shared": "workspace:*",
+    "jszip": "^3.10.1",
     "express": "^4.21.2",
     "dotenv": "^16.4.7",
     "zod": "^3.24.2"

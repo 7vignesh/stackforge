@@ -2,9 +2,13 @@ import React from "react";
 import { Card, Button } from "@stackforge/ui";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { FileTree } from "./FileTree";
-import type { Blueprint } from "../lib/api";
+import { useToast } from "@stackforge/ui";
+import { downloadProjectZip, type Blueprint } from "../lib/api";
 
 export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
+  const { addToast } = useToast();
+  const [isZipLoading, setIsZipLoading] = React.useState(false);
+
   function handleDownload() {
     const blob = new Blob([JSON.stringify(blueprint, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -13,6 +17,25 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
     a.download = `${blueprint.projectName}-blueprint.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleZipDownload() {
+    try {
+      setIsZipLoading(true);
+      const { blob, filename } = await downloadProjectZip(blueprint as unknown as Record<string, unknown>);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      addToast("success", "Your project ZIP is ready!");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create project ZIP";
+      addToast("error", message);
+    } finally {
+      setIsZipLoading(false);
+    }
   }
 
   return (
@@ -45,9 +68,14 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
                 ))}
             </div>
           </div>
-          <Button variant="secondary" onClick={handleDownload}>
-            ⬇ Download JSON
-          </Button>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <Button variant="secondary" loading={isZipLoading} onClick={handleZipDownload}>
+              Download ZIP
+            </Button>
+            <Button variant="ghost" onClick={handleDownload}>
+              Download JSON
+            </Button>
+          </div>
         </div>
       </Card>
 
