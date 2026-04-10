@@ -28,6 +28,10 @@ export const ReviewerOutputSchema = BlueprintSchema.pick({
   reviewerNotes: true,
 });
 
+export const CodegenOutputSchema = BlueprintSchema.pick({
+  generatedSourceFiles: true,
+}).partial();
+
 export const AgentOutputSchemas = {
   planner: PlannerOutputSchema,
   schema: SchemaOutputSchema,
@@ -35,4 +39,5 @@ export const AgentOutputSchemas = {
   frontend: FrontendOutputSchema,
   devops: DevopsOutputSchema,
   reviewer: ReviewerOutputSchema,
+  codegen: CodegenOutputSchema,
 } as const;

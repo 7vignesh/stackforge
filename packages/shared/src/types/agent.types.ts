@@ -9,6 +9,7 @@ import type {
   InfraPlan,
   GeneratedFile,
   FolderNode,
+  GeneratedSourceFile,
 } from "../schemas/blueprint.schema.js";
 
 // ─── Agent config interface (instances live in packages/agents) ───────────────
@@ -72,6 +73,19 @@ export type ReviewerInput = {
   generatedFilesPlan: GeneratedFile[];
 };
 
+export type CodegenInput = {
+  prompt: string;
+  projectName: string;
+  stack: TechStack;
+  entities: Entity[];
+  relationships: Relationship[];
+  routePlan: ApiRoute[];
+  frontendPages: FrontendPage[];
+  infraPlan: InfraPlan;
+  generatedFilesPlan: GeneratedFile[];
+  reviewerNotes: Blueprint["reviewerNotes"];
+};
+
 // ─── Per-agent structured outputs ────────────────────────────────────────────
 
 export type PlannerOutput = {
@@ -102,6 +116,10 @@ export type ReviewerOutput = {
   reviewerNotes: Blueprint["reviewerNotes"];
 };
 
+export type CodegenOutput =
+  | { generatedSourceFiles: GeneratedSourceFile[] }
+  | string;
+
 // ─── Union of all agent outputs ───────────────────────────────────────────────
 
 export type AgentOutput =
@@ -110,4 +128,5 @@ export type AgentOutput =
   | ApiAgentOutput
   | FrontendOutput
   | DevopsOutput
-  | ReviewerOutput;
+  | ReviewerOutput
+  | CodegenOutput;
