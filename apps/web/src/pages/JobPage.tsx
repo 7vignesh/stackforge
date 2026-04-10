@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button, Spinner, useToast } from "@stackforge/ui";
 import { AgentTimeline } from "../components/AgentTimeline";
 import { BlueprintView } from "../components/BlueprintView";
+import { TelemetryPanel } from "../components/TelemetryPanel";
 import { useJobStream } from "../hooks/useJobStream";
 import { getJob, type JobResponse } from "../lib/api";
 import { MOCK_BLUEPRINT } from "../lib/mock-data";
@@ -96,97 +97,100 @@ export function JobPage() {
   }
 
   return (
-    <PageShell>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "32px",
-          flexWrap: "wrap",
-          gap: "16px",
-        }}
-      >
-        <div>
-          <Link
-            to="/"
-            style={{ fontSize: "13px", color: "#9898a8", textDecoration: "none", display: "block", marginBottom: "8px" }}
-          >
-            ← Back to home
-          </Link>
-          <h1 style={{ fontSize: "24px", fontWeight: 700 }}>
-            {job?.projectName ?? "Loading..."}
-          </h1>
-          <p style={{ fontSize: "13px", color: "#5c5c6f", marginTop: "4px" }}>
-            Job {jobId.slice(0, 8)}...
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {stream.connected && (
-            <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#34d399" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#34d399" }} />
-              Live
-            </span>
-          )}
-          <StatusPill status={stream.jobStatus} />
-        </div>
-      </div>
-
-      {/* Two-column layout on large screens */}
-      <div style={{ display: "grid", gridTemplateColumns: stream.jobStatus === "completed" && job?.blueprint ? "380px 1fr" : "1fr", gap: "32px" }}>
-        {/* Agent Timeline */}
-        <div>
-          <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
-            Agent Progress
-          </h2>
-          <AgentTimeline agents={stream.agents} />
-        </div>
-
-        {/* Blueprint */}
-        {stream.jobStatus === "completed" && job?.blueprint && (
-          <div>
-            <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
-              Generated Blueprint
-            </h2>
-            <BlueprintView blueprint={job.blueprint} />
-          </div>
-        )}
-      </div>
-
-      {/* Error state */}
-      {stream.jobStatus === "failed" && (
+    <>
+      <PageShell>
+        {/* Header */}
         <div
-          className="animate-fade-in"
           style={{
-            marginTop: "32px",
-            padding: "24px",
-            background: "rgba(244, 63, 94, 0.06)",
-            border: "1px solid rgba(244, 63, 94, 0.2)",
-            borderRadius: "14px",
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "32px",
+            flexWrap: "wrap",
+            gap: "16px",
           }}
         >
-          <p style={{ fontSize: "16px", fontWeight: 600, color: "#f43f5e", marginBottom: "8px" }}>
-            Generation Failed
-          </p>
-          <p style={{ fontSize: "14px", color: "#9898a8", marginBottom: "16px" }}>
-            {stream.jobError ?? "An unexpected error occurred"}
-          </p>
-          <Button variant="secondary" onClick={() => window.location.href = "/"}>
-            Try Again
-          </Button>
-        </div>
-      )}
+          <div>
+            <Link
+              to="/"
+              style={{ fontSize: "13px", color: "#9898a8", textDecoration: "none", display: "block", marginBottom: "8px" }}
+            >
+              ← Back to home
+            </Link>
+            <h1 style={{ fontSize: "24px", fontWeight: 700 }}>
+              {job?.projectName ?? "Loading..."}
+            </h1>
+            <p style={{ fontSize: "13px", color: "#5c5c6f", marginTop: "4px" }}>
+              Job {jobId.slice(0, 8)}...
+            </p>
+          </div>
 
-      {/* Loading indicator when still running */}
-      {(stream.jobStatus === "queued" || stream.jobStatus === "running") && !job && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px" }}>
-          <Spinner size={32} />
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {stream.connected && (
+              <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#34d399" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#34d399" }} />
+                Live
+              </span>
+            )}
+            <StatusPill status={stream.jobStatus} />
+          </div>
         </div>
-      )}
-    </PageShell>
+
+        {/* Two-column layout on large screens */}
+        <div style={{ display: "grid", gridTemplateColumns: stream.jobStatus === "completed" && job?.blueprint ? "380px 1fr" : "1fr", gap: "32px" }}>
+          {/* Agent Timeline */}
+          <div>
+            <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
+              Agent Progress
+            </h2>
+            <AgentTimeline agents={stream.agents} />
+          </div>
+
+          {/* Blueprint */}
+          {stream.jobStatus === "completed" && job?.blueprint && (
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", color: "#9898a8" }}>
+                Generated Blueprint
+              </h2>
+              <BlueprintView blueprint={job.blueprint} />
+            </div>
+          )}
+        </div>
+
+        {/* Error state */}
+        {stream.jobStatus === "failed" && (
+          <div
+            className="animate-fade-in"
+            style={{
+              marginTop: "32px",
+              padding: "24px",
+              background: "rgba(244, 63, 94, 0.06)",
+              border: "1px solid rgba(244, 63, 94, 0.2)",
+              borderRadius: "14px",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "#f43f5e", marginBottom: "8px" }}>
+              Generation Failed
+            </p>
+            <p style={{ fontSize: "14px", color: "#9898a8", marginBottom: "16px" }}>
+              {stream.jobError ?? "An unexpected error occurred"}
+            </p>
+            <Button variant="secondary" onClick={() => window.location.href = "/"}>
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* Loading indicator when still running */}
+        {(stream.jobStatus === "queued" || stream.jobStatus === "running") && !job && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px" }}>
+            <Spinner size={32} />
+          </div>
+        )}
+      </PageShell>
+      <TelemetryPanel jobId={jobId} isDemo={isDemo} />
+    </>
   );
 }
 

@@ -16,6 +16,13 @@ import {
   type StoredJob,
 } from "../store/job.store.js";
 import { broadcast, closeJobClients } from "./sse.service.js";
+import {
+  finalizeRun,
+  getTelemetry,
+  initRun,
+  recordAgentComplete,
+  recordAgentTokens,
+} from "./telemetry.js";
 
 type ProviderMode = "openrouter" | "mock";
 
@@ -94,9 +101,36 @@ export function getRuntimeStatus(): RuntimeStatus {
 
 const cache = new AgentCache();
 
+function inferProviderFromModel(model: string): "gemini" | "groq" {
+  const normalized = model.toLowerCase();
+  if (normalized.includes("gemini") || normalized.includes("google")) {
+    return "gemini";
+  }
+
+  return "groq";
+}
+
+function buildTelemetryEvent(jobId: string): SSEEvent | undefined {
+  const telemetry = getTelemetry(jobId);
+  if (telemetry === undefined) {
+    return undefined;
+  }
+
+  return {
+    type: "telemetry_update",
+    jobId,
+    timestamp: new Date().toISOString(),
+    data: telemetry,
+  };
+}
+
 function buildEmitter(jobId: string): (event: SSEEvent) => void {
   return (event: SSEEvent): void => {
     appendEvent(jobId, event);
+
+    if (event.type === "job_created") {
+      initRun(jobId);
+    }
 
     if (event.type === "agent_completed") {
       const job = getJob(jobId);
@@ -104,9 +138,23 @@ function buildEmitter(jobId: string): (event: SSEEvent) => void {
         updateJob(jobId, { agentsCompleted: [...job.agentsCompleted, event.agent as AgentName] });
 
       }
+
+      const provider = inferProviderFromModel(event.payload.model);
+      recordAgentTokens(jobId, event.agent, provider, event.payload.totalTokens);
+      recordAgentComplete(jobId, event.agent);
+    }
+
+    if (event.type === "job_completed" || event.type === "job_failed") {
+      finalizeRun(jobId);
     }
 
     broadcast(jobId, event);
+
+    const telemetryEvent = buildTelemetryEvent(jobId);
+    if (telemetryEvent !== undefined) {
+      appendEvent(jobId, telemetryEvent);
+      broadcast(jobId, telemetryEvent);
+    }
   };
 }
 
