@@ -70,6 +70,11 @@ export type FileWriterResult = {
   buffer: Buffer;
 };
 
+export type GeneratedProjectFiles = {
+  projectName: string;
+  files: Record<string, string>;
+};
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -642,38 +647,54 @@ function renderFrontendPage(page: FrontendPageSpec): string {
   ].join("\n");
 }
 
-export async function buildProjectZip(pipelineOutput: unknown): Promise<FileWriterResult> {
+function buildProjectFilesInternal(pipelineOutput: unknown): GeneratedProjectFiles {
   const extracted = extractPipeline(pipelineOutput);
   const groupedRoutes = groupRoutes(extracted.routePlan);
-
-  const zip = new JSZip();
-  zip.file("package.json", renderPackageJson(extracted));
-  zip.file("README.md", renderReadme(extracted));
-  zip.file("tsconfig.json", renderTsConfig());
-  zip.file(".gitignore", "node_modules\ndist\n.env\n");
-  zip.file(".env.example", renderEnvExample(extracted.infra.envVars));
+  const files: Record<string, string> = {
+    "package.json": renderPackageJson(extracted),
+    "README.md": renderReadme(extracted),
+    "tsconfig.json": renderTsConfig(),
+    ".gitignore": "node_modules\ndist\n.env\n",
+    ".env.example": renderEnvExample(extracted.infra.envVars),
+    "src/index.ts": renderEntryPoint(extracted.projectName, groupedRoutes),
+  };
 
   if (extracted.entities.length > 0) {
-    zip.file("prisma/schema.prisma", renderPrismaSchema(extracted.entities, extracted.stack.database));
+    files["prisma/schema.prisma"] = renderPrismaSchema(extracted.entities, extracted.stack.database);
   }
 
   for (const group of groupedRoutes) {
-    zip.file(`src/routes/${group.fileName}`, renderRouteFile(group));
+    files[`src/routes/${group.fileName}`] = renderRouteFile(group);
   }
-
-  zip.file("src/index.ts", renderEntryPoint(extracted.projectName, groupedRoutes));
 
   for (const page of extracted.frontendPages) {
     const pageName = sanitizeIdentifier(toPascalCase(page.name), "Page");
-    zip.file(`src/pages/${pageName}.tsx`, renderFrontendPage(page));
+    files[`src/pages/${pageName}.tsx`] = renderFrontendPage(page);
   }
 
   if (extracted.infra.docker) {
-    zip.file("Dockerfile", renderDockerfile(extracted.infra.dockerfile));
-    zip.file("docker-compose.yml", renderDockerCompose(extracted.infra.dockerCompose));
+    files["Dockerfile"] = renderDockerfile(extracted.infra.dockerfile);
+    files["docker-compose.yml"] = renderDockerCompose(extracted.infra.dockerCompose);
   }
 
-  const projectName = toKebabCase(extracted.projectName);
+  return {
+    projectName: toKebabCase(extracted.projectName),
+    files,
+  };
+}
+
+export function buildProjectFiles(pipelineOutput: unknown): GeneratedProjectFiles {
+  return buildProjectFilesInternal(pipelineOutput);
+}
+
+export async function buildProjectZip(pipelineOutput: unknown): Promise<FileWriterResult> {
+  const { projectName, files } = buildProjectFilesInternal(pipelineOutput);
+
+  const zip = new JSZip();
+  for (const [path, content] of Object.entries(files)) {
+    zip.file(path, content);
+  }
+
   const buffer = await zip.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",

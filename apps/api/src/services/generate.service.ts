@@ -87,6 +87,10 @@ function getProvider(): LLMProvider {
   return provider;
 }
 
+export function getProviderForPipeline(): LLMProvider {
+  return getProvider();
+}
+
 export function getRuntimeStatus(): RuntimeStatus {
   const mode = providerMode ?? resolveProviderMode();
 
