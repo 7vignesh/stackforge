@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type ProviderStats = {
   calls: number;
@@ -81,6 +81,14 @@ function AnimatedNumber({
 export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDemo?: boolean }) {
   const [telemetry, setTelemetry] = useState<RunTelemetry | null>(null);
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState(0);
+  const [isOpen, setIsOpen] = useState(true);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const dragStateRef = useRef<{ active: boolean; offsetX: number; offsetY: number }>({
+    active: false,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   useEffect(() => {
     if (!jobId || isDemo) {
@@ -132,6 +140,37 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
     return () => window.clearInterval(interval);
   }, [telemetry]);
 
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!dragStateRef.current.active || panelRef.current === null) {
+        return;
+      }
+
+      const panel = panelRef.current;
+      const minX = 8;
+      const minY = 8;
+      const maxX = Math.max(minX, window.innerWidth - panel.offsetWidth - 8);
+      const maxY = Math.max(minY, window.innerHeight - panel.offsetHeight - 8);
+      const nextX = Math.min(maxX, Math.max(minX, event.clientX - dragStateRef.current.offsetX));
+      const nextY = Math.min(maxY, Math.max(minY, event.clientY - dragStateRef.current.offsetY));
+
+      setPosition({ x: nextX, y: nextY });
+    };
+
+    const handlePointerUp = () => {
+      dragStateRef.current.active = false;
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
   const providerRows = useMemo(() => topEntries(telemetry?.providerBreakdown ?? {}), [telemetry]);
   const modelRows = useMemo(() => topEntries(telemetry?.modelBreakdown ?? {}), [telemetry]);
   const providerTotalCalls = useMemo(
@@ -147,69 +186,110 @@ export function TelemetryPanel({ jobId, isDemo = false }: { jobId?: string; isDe
     return null;
   }
 
+  const panelStyle = position === null
+    ? undefined
+    : {
+      left: `${position.x}px`,
+      top: `${position.y}px`,
+      right: "auto",
+      bottom: "auto",
+    };
+
+  const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (panelRef.current === null) {
+      return;
+    }
+
+    const rect = panelRef.current.getBoundingClientRect();
+    dragStateRef.current = {
+      active: true,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+
+    document.body.style.userSelect = "none";
+  };
+
   return (
     <aside
+      ref={panelRef}
       className="sf-telemetry-panel"
+      style={panelStyle}
+      onPointerDown={beginDrag}
     >
-      <div className="sf-telemetry-title">
-        📊 This Run
+      <div className="sf-telemetry-header">
+        <div className="sf-telemetry-title">
+          📊 This Run
+        </div>
+        <button
+          type="button"
+          className="sf-telemetry-toggle"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => setIsOpen((value) => !value)}
+        >
+          {isOpen ? "Close" : "Open"}
+        </button>
       </div>
 
-      <div className="sf-telemetry-stats-wrap">
-        <StatRow
-          label="Total tokens"
-          value={<AnimatedNumber display={formatInt(telemetry.totalTokensUsed)} watchValue={telemetry.totalTokensUsed} />}
-        />
-        <StatRow
-          label="Estimated cost"
-          value={<AnimatedNumber display={formatCost(telemetry.estimatedCostINR)} watchValue={telemetry.estimatedCostINR} />}
-        />
-        <StatRow
-          label="Elapsed time"
-          value={<AnimatedNumber display={formatElapsed(liveElapsedSeconds)} watchValue={Math.round(liveElapsedSeconds * 10)} />}
-        />
-        <StatRow
-          label="Agents done"
-          value={
-            <AnimatedNumber
-              display={`${telemetry.agentsCompleted} / ${telemetry.agentsTotal}`}
-              watchValue={telemetry.agentsCompleted}
+      {isOpen && (
+        <>
+          <div className="sf-telemetry-stats-wrap">
+            <StatRow
+              label="Total tokens"
+              value={<AnimatedNumber display={formatInt(telemetry.totalTokensUsed)} watchValue={telemetry.totalTokensUsed} />}
             />
-          }
-        />
-      </div>
+            <StatRow
+              label="Estimated cost"
+              value={<AnimatedNumber display={formatCost(telemetry.estimatedCostINR)} watchValue={telemetry.estimatedCostINR} />}
+            />
+            <StatRow
+              label="Elapsed time"
+              value={<AnimatedNumber display={formatElapsed(liveElapsedSeconds)} watchValue={Math.round(liveElapsedSeconds * 10)} />}
+            />
+            <StatRow
+              label="Agents done"
+              value={
+                <AnimatedNumber
+                  display={`${telemetry.agentsCompleted} / ${telemetry.agentsTotal}`}
+                  watchValue={telemetry.agentsCompleted}
+                />
+              }
+            />
+          </div>
 
-      <div className="sf-telemetry-group">
-        <div className="sf-telemetry-group-title">Provider breakdown:</div>
-        {providerRows.length === 0 && (
-          <div className="sf-telemetry-empty">No provider calls yet</div>
-        )}
-        {providerRows.map((row, index) => (
-          <ProviderRow
-            key={`provider-${row.name}`}
-            name={toDisplayName(row.name)}
-            calls={row.calls}
-            ratio={providerTotalCalls > 0 ? (row.calls / providerTotalCalls) * 100 : 0}
-            variant={index % 2 === 0 ? "provider-a" : "provider-b"}
-          />
-        ))}
-      </div>
+          <div className="sf-telemetry-group">
+            <div className="sf-telemetry-group-title">Provider breakdown:</div>
+            {providerRows.length === 0 && (
+              <div className="sf-telemetry-empty">No provider calls yet</div>
+            )}
+            {providerRows.map((row, index) => (
+              <ProviderRow
+                key={`provider-${row.name}`}
+                name={toDisplayName(row.name)}
+                calls={row.calls}
+                ratio={providerTotalCalls > 0 ? (row.calls / providerTotalCalls) * 100 : 0}
+                variant={index % 2 === 0 ? "provider-a" : "provider-b"}
+              />
+            ))}
+          </div>
 
-      <div className="sf-telemetry-group sf-telemetry-group-tight">
-        <div className="sf-telemetry-group-title">Model breakdown:</div>
-        {modelRows.length === 0 && (
-          <div className="sf-telemetry-empty">No model calls yet</div>
-        )}
-        {modelRows.map((row, index) => (
-          <ProviderRow
-            key={`model-${row.name}`}
-            name={row.name}
-            calls={row.calls}
-            ratio={modelTotalCalls > 0 ? (row.calls / modelTotalCalls) * 100 : 0}
-            variant={index % 2 === 0 ? "model-a" : "model-b"}
-          />
-        ))}
-      </div>
+          <div className="sf-telemetry-group sf-telemetry-group-tight">
+            <div className="sf-telemetry-group-title">Model breakdown:</div>
+            {modelRows.length === 0 && (
+              <div className="sf-telemetry-empty">No model calls yet</div>
+            )}
+            {modelRows.map((row, index) => (
+              <ProviderRow
+                key={`model-${row.name}`}
+                name={row.name}
+                calls={row.calls}
+                ratio={modelTotalCalls > 0 ? (row.calls / modelTotalCalls) * 100 : 0}
+                variant={index % 2 === 0 ? "model-a" : "model-b"}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </aside>
   );
 }
