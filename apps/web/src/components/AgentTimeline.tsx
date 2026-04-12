@@ -1,4 +1,3 @@
-import React from "react";
 import { AgentCard } from "./AgentCard";
 import type { AgentState } from "../hooks/useJobStream";
 

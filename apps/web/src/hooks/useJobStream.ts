@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { runDemoSimulation } from "../lib/mock-data";
 
 export type AgentStatus = "waiting" | "running" | "completed" | "failed";
@@ -39,7 +39,6 @@ export function useJobStream(
   const [jobStatus, setJobStatus] = useState<JobStreamState["jobStatus"]>("queued");
   const [jobError, setJobError] = useState<string | undefined>();
   const [connected, setConnected] = useState(false);
-  const sourceRef = useRef<EventSource | null>(null);
 
   const handleEvent = useCallback((data: Record<string, unknown>) => {
     const type = data["type"] as string;
@@ -179,7 +178,6 @@ export function useJobStream(
     setJobError(undefined);
 
     const source = new EventSource(`/api/stream/${jobId}`);
-    sourceRef.current = source;
 
     source.onopen = () => setConnected(true);
 
@@ -215,7 +213,6 @@ export function useJobStream(
 
     return () => {
       source.close();
-      sourceRef.current = null;
     };
   }, [jobId, isDemo, includeCodegen, handleEvent]);
 

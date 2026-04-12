@@ -168,6 +168,9 @@ body::after {
   position: relative;
   padding: 4px 0;
   transition: color 0.3s var(--ease-premium);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .sf-nav-link::after {
@@ -1265,11 +1268,6 @@ body::after {
   50%      { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
 }
 
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(100%); }
   to   { opacity: 1; transform: translateX(0); }
@@ -1360,13 +1358,6 @@ body::after {
 
 .animate-slide-up {
   animation: slideUp var(--transition-slow) ease-out;
-}
-
-.skeleton {
-  background: linear-gradient(90deg, rgba(13, 21, 36, 0.9) 25%, rgba(19, 31, 53, 0.95) 50%, rgba(13, 21, 36, 0.9) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 10px;
 }
 
 @media (max-width: 900px) {

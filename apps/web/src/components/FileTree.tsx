@@ -1,5 +1,3 @@
-import React from "react";
-
 interface FolderNode {
   path: string;
   type: "file" | "dir";

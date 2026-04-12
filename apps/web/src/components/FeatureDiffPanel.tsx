@@ -1,4 +1,3 @@
-import React from "react";
 import type { DiffObject, PipelineAgentId } from "../lib/api";
 
 const AGENT_LABELS: Record<PipelineAgentId, string> = {
