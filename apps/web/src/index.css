@@ -333,6 +333,51 @@ body::after {
   animation-timing-function: ease-in-out;
 }
 
+.sf-demo-banner {
+  position: relative;
+  z-index: 10;
+  max-width: 680px;
+  margin: 32px auto 0;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.06) 0%, rgba(139, 92, 246, 0.06) 100%);
+  backdrop-filter: blur(12px);
+  text-align: center;
+  animation: fadeIn 0.6s ease-out;
+}
+
+.sf-demo-banner p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.sf-demo-banner strong {
+  color: #7dd3fc;
+}
+
+.sf-demo-banner-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.sf-demo-banner-link:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
 .sf-hero {
   position: relative;
   z-index: 10;
@@ -1367,6 +1412,15 @@ body::after {
 
   .sf-nav-links {
     gap: 18px;
+  }
+
+  .sf-demo-banner {
+    margin: 20px 16px 0;
+    padding: 14px 16px;
+  }
+
+  .sf-demo-banner p {
+    font-size: 13px;
   }
 
   .sf-dashboard-ui {
