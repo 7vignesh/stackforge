@@ -21,7 +21,7 @@ export type { RuntimeTokenConstraints } from "./optimizer/token.optimizer.js";
 
 // workflow
 export { WorkflowEngine } from "./workflow/engine.js";
-export { selectWorkflow, getWorkflowDefinitions } from "./workflow/router.js";
+export { selectWorkflow } from "./workflow/router.js";
 export type {
 	SkillHeader,
 	WorkflowDefinition,
@@ -40,9 +40,6 @@ export { runSchemaAgent } from "./agents/schema.agent.js";
 export { runApiAgent } from "./agents/api.agent.js";
 export { runFrontendAgent } from "./agents/frontend.agent.js";
 export { runDevopsAgent } from "./agents/devops.agent.js";
-export { runReviewerAgent } from "./agents/reviewer.agent.js";
-export { runCodegenAgent } from "./agents/codegen.agent.js";
-
 // orchestrator
 export { runOrchestrator } from "./orchestrator/orchestrator.service.js";
 export type { OrchestratorOptions } from "./orchestrator/orchestrator.service.js";

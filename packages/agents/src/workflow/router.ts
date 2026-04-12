@@ -127,13 +127,3 @@ export function selectWorkflow(userPrompt: string): WorkflowDefinition {
 
   return isFeatureFlow ? FEATURE_ADD_WORKFLOW : FULLSTACK_SCAFFOLD_WORKFLOW;
 }
-
-export function getWorkflowDefinitions(): {
-  fullstackScaffold: WorkflowDefinition;
-  featureAdd: WorkflowDefinition;
-} {
-  return {
-    fullstackScaffold: FULLSTACK_SCAFFOLD_WORKFLOW,
-    featureAdd: FEATURE_ADD_WORKFLOW,
-  };
-}
