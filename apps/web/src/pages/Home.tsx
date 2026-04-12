@@ -36,6 +36,11 @@ export function Home() {
       })
       .catch((err) => {
         setRuntime(null);
+        if (import.meta.env.PROD) {
+          // Frontend-only deployments may not expose /api/runtime.
+          setRuntimeError(null);
+          return;
+        }
         setRuntimeError(err instanceof Error ? err.message : "Failed to load runtime status");
       });
   }, []);
