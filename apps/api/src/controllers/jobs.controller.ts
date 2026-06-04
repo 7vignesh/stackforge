@@ -75,7 +75,13 @@ export function streamController(req: Request, res: Response, next: NextFunction
     job.status === JOB_STATUS.COMPLETED || job.status === JOB_STATUS.FAILED;
 
   // Replay past events + register for live events
-  subscribe(job.id, res, job.events);
+  const result = subscribe(job.id, res, job.events);
+
+  if (!result.success) {
+    res.write(`event: error\ndata: ${JSON.stringify({ error: result.reason })}\n\n`);
+    res.end();
+    return;
+  }
 
   // If already finished, close immediately after replay
   if (isDone) {
