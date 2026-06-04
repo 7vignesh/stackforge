@@ -3,6 +3,7 @@ import express, { type Express, type ErrorRequestHandler } from "express";
 import helmet from "helmet";
 import { router } from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
+import { generalLimiter } from "./middleware/rate-limit.middleware.js";
 
 const app: Express = express();
 const PORT = process.env["PORT"] ?? "3001";
@@ -41,7 +42,8 @@ app.get("/healthz", (_req, res) => {
   res.json({ status: "ok", service: "stackforge-api", ts: new Date().toISOString() });
 });
 
-app.use("/api", router);
+// Apply general rate limiter to all API routes
+app.use("/api", generalLimiter, router);
 
 app.use(errorMiddleware as ErrorRequestHandler);
 

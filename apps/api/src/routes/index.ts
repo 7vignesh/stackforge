@@ -9,10 +9,11 @@ import {
 import { downloadRouter } from "./download.js";
 import { githubRouter } from "./github.js";
 import { pipelineRouter } from "./pipeline.js";
+import { generateLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router: IRouter = Router();
 
-router.post("/generate", generateController);
+router.post("/generate", generateLimiter, generateController);
 router.get("/runtime", runtimeController);
 router.get("/jobs", listJobsController);
 router.get("/jobs/:jobId", getJobController);

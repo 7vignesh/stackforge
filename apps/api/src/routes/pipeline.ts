@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { z } from "zod";
 import { addFeatureToBlueprint } from "../services/addFeature.service.js";
 import { getProviderForPipeline, getRuntimeStatus } from "../services/generate.service.js";
+import { generateLimiter } from "../middleware/rate-limit.middleware.js";
 
 const AddFeatureRequestSchema = z.object({
   runId: z.string().uuid(),
@@ -13,6 +14,7 @@ const pipelineRouter: IRouter = Router();
 
 pipelineRouter.post(
   "/pipeline/add-feature",
+  generateLimiter,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const parsed = AddFeatureRequestSchema.safeParse(req.body);
 

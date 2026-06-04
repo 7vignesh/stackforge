@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { pushToGitHub, type GithubPushProgress } from "../services/githubPusher.js";
+import { githubPushLimiter } from "../middleware/rate-limit.middleware.js";
 
 const GithubPushRequestSchema = z.object({
   pipelineOutput: z.unknown(),
@@ -21,7 +22,7 @@ function writeEvent(
 
 const githubRouter: IRouter = Router();
 
-githubRouter.post("/github/push", async (req: Request, res: Response): Promise<void> => {
+githubRouter.post("/github/push", githubPushLimiter, async (req: Request, res: Response): Promise<void> => {
   const parsed = GithubPushRequestSchema.safeParse(req.body);
 
   if (!parsed.success) {
