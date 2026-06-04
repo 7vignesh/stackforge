@@ -11,7 +11,8 @@ const PORT = process.env["PORT"] ?? "3001";
 // Security headers
 app.use(helmet());
 
-app.use(express.json());
+// Body parser with size limits to prevent payload abuse
+app.use(express.json({ limit: "2mb" }));
 
 // CORS — restrict to known origins
 const ALLOWED_ORIGINS = (process.env["CORS_ALLOWED_ORIGINS"] ?? "http://localhost:5173,http://localhost:3001")

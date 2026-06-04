@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import express from "express";
 import { generateController } from "../controllers/generate.controller.js";
 import {
 	runtimeController,
@@ -13,7 +14,8 @@ import { generateLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router: IRouter = Router();
 
-router.post("/generate", generateLimiter, generateController);
+// Generate endpoint — small payload only (prompts + config)
+router.post("/generate", express.json({ limit: "64kb" }), generateLimiter, generateController);
 router.get("/runtime", runtimeController);
 router.get("/jobs", listJobsController);
 router.get("/jobs/:jobId", getJobController);
