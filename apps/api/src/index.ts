@@ -12,15 +12,28 @@ app.use(helmet());
 
 app.use(express.json());
 
-// CORS for Vite dev server
-app.use((_req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+// CORS — restrict to known origins
+const ALLOWED_ORIGINS = (process.env["CORS_ALLOWED_ORIGINS"] ?? "http://localhost:5173,http://localhost:3001")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (_req.method === "OPTIONS") {
+
+  if (req.method === "OPTIONS") {
     res.sendStatus(204);
     return;
   }
+
   next();
 });
 
