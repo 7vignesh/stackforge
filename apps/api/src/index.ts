@@ -1,10 +1,14 @@
 import "dotenv/config";
 import express, { type Express, type ErrorRequestHandler } from "express";
+import helmet from "helmet";
 import { router } from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const app: Express = express();
 const PORT = process.env["PORT"] ?? "3001";
+
+// Security headers
+app.use(helmet());
 
 app.use(express.json());
 
