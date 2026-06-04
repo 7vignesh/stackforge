@@ -21,7 +21,94 @@ export type StoredJob = {
   events: SSEEvent[];
 };
 
+/**
+ * Memory-bounded job store with TTL eviction.
+ *
+ * - MAX_JOBS: Maximum number of jobs to retain in memory.
+ * - JOB_TTL_MS: Time-to-live for completed/failed jobs (default 1 hour).
+ * - EVICTION_INTERVAL_MS: How often to run the eviction sweep (default 5 minutes).
+ */
+const MAX_JOBS = 200;
+const JOB_TTL_MS = 60 * 60 * 1000; // 1 hour
+const EVICTION_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 const store = new Map<string, StoredJob>();
+
+// Periodic eviction of expired completed/failed jobs
+setInterval(() => {
+  evictExpiredJobs();
+}, EVICTION_INTERVAL_MS).unref();
+
+function evictExpiredJobs(): void {
+  const now = Date.now();
+  const toDelete: string[] = [];
+
+  for (const [id, job] of store) {
+    // Only evict completed or failed jobs
+    if (job.status !== "completed" && job.status !== "failed") {
+      continue;
+    }
+
+    const completedTime = job.completedAt ? new Date(job.completedAt).getTime() : 0;
+    const updatedTime = new Date(job.updatedAt).getTime();
+    const referenceTime = Math.max(completedTime, updatedTime);
+
+    if (now - referenceTime > JOB_TTL_MS) {
+      toDelete.push(id);
+    }
+  }
+
+  for (const id of toDelete) {
+    store.delete(id);
+  }
+
+  if (toDelete.length > 0) {
+    console.log(`[job-store] Evicted ${toDelete.length} expired jobs. Current size: ${store.size}`);
+  }
+}
+
+function evictOldestIfAtCapacity(): void {
+  if (store.size < MAX_JOBS) {
+    return;
+  }
+
+  // Find the oldest completed/failed job to evict
+  let oldestId: string | undefined;
+  let oldestTime = Infinity;
+
+  for (const [id, job] of store) {
+    if (job.status !== "completed" && job.status !== "failed") {
+      continue;
+    }
+
+    const createdTime = new Date(job.createdAt).getTime();
+    if (createdTime < oldestTime) {
+      oldestTime = createdTime;
+      oldestId = id;
+    }
+  }
+
+  if (oldestId !== undefined) {
+    store.delete(oldestId);
+    return;
+  }
+
+  // If all jobs are still running/queued, evict the oldest regardless
+  let fallbackId: string | undefined;
+  let fallbackTime = Infinity;
+
+  for (const [id, job] of store) {
+    const createdTime = new Date(job.createdAt).getTime();
+    if (createdTime < fallbackTime) {
+      fallbackTime = createdTime;
+      fallbackId = id;
+    }
+  }
+
+  if (fallbackId !== undefined) {
+    store.delete(fallbackId);
+  }
+}
 
 export type JobTokenUsage = {
   totalTokens: number;
@@ -80,6 +167,8 @@ export function summarizeJobTokenUsage(job: StoredJob): JobTokenUsage {
 }
 
 export function createJob(prompt: string, projectName: string): StoredJob {
+  evictOldestIfAtCapacity();
+
   const now = new Date().toISOString();
   const job: StoredJob = {
     id: randomUUID(),

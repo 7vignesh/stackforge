@@ -9,7 +9,27 @@ const USD_PER_1K_GEMINI = 0.000075;
 const USD_PER_1K_GROQ = 0.000059;
 const USD_TO_INR = 85;
 
+const MAX_TELEMETRY_RUNS = 200;
+const TELEMETRY_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 const runs: TelemetryStore = new Map();
+
+// Periodic eviction of old telemetry entries
+setInterval(() => {
+  const now = Date.now();
+  const toDelete: string[] = [];
+
+  for (const [runId, telemetry] of runs) {
+    const referenceTime = telemetry.endTime ?? telemetry.startTime;
+    if (now - referenceTime > TELEMETRY_TTL_MS) {
+      toDelete.push(runId);
+    }
+  }
+
+  for (const id of toDelete) {
+    runs.delete(id);
+  }
+}, 5 * 60 * 1000).unref();
 
 function cloneTelemetry(telemetry: Telemetry): Telemetry {
   return {
@@ -80,6 +100,21 @@ function withRun(runId: string, updater: (telemetry: Telemetry) => void): Teleme
 }
 
 export function initRun(runId: string, options?: { agentsTotal?: number }): Telemetry {
+  // Evict oldest entry if at capacity
+  if (runs.size >= MAX_TELEMETRY_RUNS) {
+    let oldestKey: string | undefined;
+    let oldestTime = Infinity;
+    for (const [key, t] of runs) {
+      if (t.startTime < oldestTime) {
+        oldestTime = t.startTime;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey !== undefined) {
+      runs.delete(oldestKey);
+    }
+  }
+
   const requestedTotal = options?.agentsTotal;
   const agentsTotal =
     typeof requestedTotal === "number" && Number.isFinite(requestedTotal)
