@@ -721,11 +721,24 @@ export function buildProjectFiles(pipelineOutput: unknown): GeneratedProjectFile
   return buildProjectFilesInternal(pipelineOutput);
 }
 
-export async function buildProjectZip(pipelineOutput: unknown): Promise<FileWriterResult> {
+export type BuildZipOptions = {
+  maxFiles?: number;
+};
+
+export async function buildProjectZip(
+  pipelineOutput: unknown,
+  options?: BuildZipOptions,
+): Promise<FileWriterResult> {
   const { projectName, files } = buildProjectFilesInternal(pipelineOutput);
+  const maxFiles = options?.maxFiles ?? 500;
+
+  const entries = Object.entries(files);
+  if (entries.length > maxFiles) {
+    throw new Error(`Generated project exceeds maximum file count (${entries.length} > ${maxFiles})`);
+  }
 
   const zip = new JSZip();
-  for (const [path, content] of Object.entries(files)) {
+  for (const [path, content] of entries) {
     zip.file(path, content);
   }
 
