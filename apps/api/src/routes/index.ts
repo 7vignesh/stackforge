@@ -11,12 +11,18 @@ import { downloadRouter } from "./download.js";
 import { githubRouter } from "./github.js";
 import { pipelineRouter } from "./pipeline.js";
 import { generateLimiter } from "../middleware/rate-limit.middleware.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router: IRouter = Router();
 
+// Public endpoints (no auth required)
+router.get("/runtime", runtimeController);
+
+// Protected endpoints — require API key when STACKFORGE_API_KEY is set
+router.use(authMiddleware);
+
 // Generate endpoint — small payload only (prompts + config)
 router.post("/generate", express.json({ limit: "64kb" }), generateLimiter, generateController);
-router.get("/runtime", runtimeController);
 router.get("/jobs", listJobsController);
 router.get("/jobs/:jobId", getJobController);
 router.get("/stream/:jobId", streamController);
