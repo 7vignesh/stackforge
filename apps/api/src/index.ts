@@ -7,9 +7,28 @@ import { generalLimiter } from "./middleware/rate-limit.middleware.js";
 
 const app: Express = express();
 const PORT = process.env["PORT"] ?? "3001";
+const IS_PRODUCTION = process.env["NODE_ENV"] === "production";
 
-// Security headers
-app.use(helmet());
+// Security headers — includes HSTS for HTTPS enforcement in production
+app.use(
+  helmet({
+    hsts: IS_PRODUCTION
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : false,
+  }),
+);
+
+// HTTPS redirect in production (behind reverse proxy with X-Forwarded-Proto)
+if (IS_PRODUCTION) {
+  app.set("trust proxy", 1);
+  app.use((req, res, next) => {
+    if (req.protocol !== "https" && req.get("X-Forwarded-Proto") !== "https") {
+      res.redirect(301, `https://${req.get("host") ?? "localhost"}${req.originalUrl}`);
+      return;
+    }
+    next();
+  });
+}
 
 // Body parser with size limits to prevent payload abuse
 app.use(express.json({ limit: "2mb" }));
