@@ -3,11 +3,31 @@ import { z } from "zod";
 import { pushToGitHub, type GithubPushProgress } from "../services/githubPusher.js";
 import { githubPushLimiter } from "../middleware/rate-limit.middleware.js";
 
+/**
+ * GitHub token format validation.
+ * Accepts: ghp_*, gho_*, github_pat_*, ghu_*, ghs_*, ghr_* prefixes.
+ */
+const GITHUB_TOKEN_REGEX = /^(ghp_|gho_|github_pat_|ghu_|ghs_|ghr_)[a-zA-Z0-9_]+$/;
+
 const GithubPushRequestSchema = z.object({
   pipelineOutput: z.unknown(),
-  projectName: z.string().min(1),
-  githubToken: z.string().min(1),
+  projectName: z.string().min(1).max(100),
+  githubToken: z
+    .string()
+    .min(1)
+    .refine(
+      (token) => GITHUB_TOKEN_REGEX.test(token),
+      { message: "Invalid GitHub token format. Use a valid personal access token." },
+    ),
 });
+
+/**
+ * Redact a token for safe logging (show only prefix and last 4 chars).
+ */
+function redactToken(token: string): string {
+  if (token.length <= 8) return "****";
+  return `${token.slice(0, 4)}...${token.slice(-4)}`;
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36,6 +56,9 @@ githubRouter.post("/github/push", githubPushLimiter, async (req: Request, res: R
     return;
   }
 
+  // Log the push attempt with redacted token for audit trail
+  console.log(`[github-push] Initiating push for project "${projectName}" with token ${redactToken(githubToken)}`);
+
   const acceptHeader = req.headers["accept"];
   const wantsStream = typeof acceptHeader === "string" && acceptHeader.includes("application/x-ndjson");
 
@@ -45,13 +68,15 @@ githubRouter.post("/github/push", githubPushLimiter, async (req: Request, res: R
       res.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to push to GitHub";
-      res.status(500).json({ error: message });
+      // Never include the token in error responses
+      const safeMessage = message.replace(githubToken, "[REDACTED]");
+      res.status(500).json({ error: safeMessage });
     }
     return;
   }
 
   res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Cache-Control", "no-cache, no-transform, no-store");
   res.setHeader("Connection", "keep-alive");
 
   try {
@@ -77,9 +102,10 @@ githubRouter.post("/github/push", githubPushLimiter, async (req: Request, res: R
     res.end();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to push to GitHub";
+    const safeMessage = message.replace(githubToken, "[REDACTED]");
     writeEvent(res, {
       type: "error",
-      message,
+      message: safeMessage,
       success: false,
     });
     res.end();
