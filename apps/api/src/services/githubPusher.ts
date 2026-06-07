@@ -8,12 +8,50 @@ export type GithubPushProgress = {
   repoUrl?: string;
 };
 
+/**
+ * GitHub repo name constraints:
+ * - Max 100 characters
+ * - Only alphanumeric, hyphens, underscores, and dots
+ * - Cannot start or end with a dot
+ * - Cannot contain ".."
+ */
+const GITHUB_REPO_NAME_REGEX = /^[a-z0-9]([a-z0-9._-]{0,98}[a-z0-9])?$/;
+
 function toKebabCase(value: string): string {
   return value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "stackforge-app";
+}
+
+/**
+ * Validate that a repo name conforms to GitHub naming rules.
+ */
+function validateRepoName(name: string): void {
+  if (name.length === 0) {
+    throw new Error("Repository name cannot be empty");
+  }
+  if (name.length > 100) {
+    throw new Error("Repository name cannot exceed 100 characters");
+  }
+  if (name.includes("..")) {
+    throw new Error("Repository name cannot contain '..'");
+  }
+  if (!GITHUB_REPO_NAME_REGEX.test(name)) {
+    throw new Error(`Invalid repository name: "${name}". Use only lowercase alphanumeric characters, hyphens, underscores, and dots.`);
+  }
+}
+
+/**
+ * Validate file paths to prevent directory traversal attacks.
+ */
+function isPathSafe(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  if (normalized.startsWith("/") || normalized.startsWith("..")) return false;
+  if (normalized.includes("/../") || normalized.endsWith("/..")) return false;
+  if (normalized.includes("\0")) return false;
+  return true;
 }
 
 function wait(ms: number): Promise<void> {
@@ -78,6 +116,7 @@ export async function pushToGitHub(
   }
 
   const repoName = toKebabCase(projectName);
+  validateRepoName(repoName);
   const octokit = new Octokit({ auth: token });
 
   const authUser = await octokit.users.getAuthenticated();
@@ -100,7 +139,13 @@ export async function pushToGitHub(
   });
 
   const { files } = buildProjectFiles(pipelineOutput);
-  const entries = Object.entries(files).sort(([a], [b]) => a.localeCompare(b));
+  const entries = Object.entries(files)
+    .filter(([filePath]) => isPathSafe(filePath))
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  if (entries.length === 0) {
+    throw new Error("No valid files to push to GitHub");
+  }
 
   for (const [filePath, content] of entries) {
     await octokit.repos.createOrUpdateFileContents({
