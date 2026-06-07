@@ -2,6 +2,39 @@ import JSZip from "jszip";
 
 type JsonRecord = Record<string, unknown>;
 
+/**
+ * Dangerous property names that could be used for prototype pollution.
+ */
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Check if a key is safe from prototype pollution attacks.
+ */
+function isSafeKey(key: string): boolean {
+  return !DANGEROUS_KEYS.has(key);
+}
+
+/**
+ * Recursively strip dangerous keys from an object to prevent prototype pollution.
+ */
+function sanitizeObject(value: unknown): unknown {
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeObject);
+  }
+
+  const result: Record<string, unknown> = Object.create(null);
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    if (isSafeKey(key)) {
+      result[key] = sanitizeObject((value as Record<string, unknown>)[key]);
+    }
+  }
+  return result;
+}
+
 type EntityFieldSpec = {
   name: string;
   type: string;
@@ -248,7 +281,9 @@ function extractGeneratedSourceFiles(candidate: unknown): Array<{ path: string; 
 }
 
 function extractPipeline(pipelineOutput: unknown): ExtractedPipeline {
-  const root = isRecord(pipelineOutput) ? pipelineOutput : {};
+  // Sanitize input to prevent prototype pollution from user-supplied JSON
+  const sanitized = sanitizeObject(pipelineOutput);
+  const root = isRecord(sanitized) ? sanitized : {};
   const primary = isRecord(root["blueprint"]) ? root["blueprint"] : root;
   const schema = isRecord(root["schema"]) ? root["schema"] : {};
   const api = isRecord(root["api"]) ? root["api"] : {};
