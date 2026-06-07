@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { runDemoSimulation } from "../lib/mock-data";
+import { sanitizeStreamContent } from "../lib/sanitize";
 
 export type AgentStatus = "waiting" | "running" | "completed" | "failed";
 
@@ -70,7 +71,7 @@ export function useJobStream(
               ? {
                   ...a,
                   status: "running" as AgentStatus,
-                  streamBuffer: `${a.streamBuffer ?? ""}${String(data["token"] ?? "")}`,
+                  streamBuffer: `${a.streamBuffer ?? ""}${sanitizeStreamContent(String(data["token"] ?? ""))}`,
                 }
               : a,
           ),
