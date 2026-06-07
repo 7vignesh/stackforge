@@ -1,6 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { runDemoSimulation } from "../lib/mock-data";
-import { sanitizeStreamContent } from "../lib/sanitize";
+import { sanitizeStreamContent, sanitizeEventData } from "../lib/sanitize";
+
+/**
+ * Safely parse SSE event data with validation.
+ * Returns null if parsing fails or data is malformed.
+ */
+function safeParseEventData(raw: string): Record<string, unknown> | null {
+  if (!raw || raw.length > 1_000_000) {
+    // Reject empty or suspiciously large payloads
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return sanitizeEventData(parsed as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
 
 export type AgentStatus = "waiting" | "running" | "completed" | "failed";
 
@@ -211,10 +232,9 @@ export function useJobStream(
 
       for (const eventType of EVENT_TYPES) {
         source.addEventListener(eventType, (e) => {
-          try {
-            handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-          } catch {
-            // Ignore malformed event data
+          const data = safeParseEventData(e.data);
+          if (data !== null) {
+            handleEvent(data);
           }
         });
       }
