@@ -170,7 +170,7 @@ export function useJobStream(
     return cancel;
   }, [jobId, isDemo, includeCodegen, handleEvent]);
 
-  // Real SSE mode
+  // Real SSE mode with exponential backoff reconnection
   useEffect(() => {
     if (!jobId || isDemo) return;
 
@@ -178,42 +178,71 @@ export function useJobStream(
     setJobStatus("queued");
     setJobError(undefined);
 
-    const source = new EventSource(`/api/stream/${jobId}`);
+    let source: EventSource | null = null;
+    let retryCount = 0;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
 
-    source.onopen = () => setConnected(true);
+    const MAX_RETRIES = 5;
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS = 30000;
 
-    source.addEventListener("job_created", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("agent_started", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("agent_token", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("agent_complete", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("agent_completed", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("agent_failed", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("job_completed", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
-    source.addEventListener("job_failed", (e) => {
-      handleEvent(JSON.parse(e.data) as Record<string, unknown>);
-    });
+    function getBackoffDelay(attempt: number): number {
+      const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
+      // Add jitter (±25%)
+      const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+      return Math.round(delay + jitter);
+    }
 
-    source.onerror = () => {
-      setConnected(false);
-      source.close();
-    };
+    function connectSSE() {
+      if (isCancelled) return;
+
+      source = new EventSource(`/api/stream/${jobId}`);
+
+      source.onopen = () => {
+        setConnected(true);
+        retryCount = 0; // Reset on successful connection
+      };
+
+      const EVENT_TYPES = [
+        "job_created", "agent_started", "agent_token", "agent_complete",
+        "agent_completed", "agent_failed", "job_completed", "job_failed",
+      ] as const;
+
+      for (const eventType of EVENT_TYPES) {
+        source.addEventListener(eventType, (e) => {
+          try {
+            handleEvent(JSON.parse(e.data) as Record<string, unknown>);
+          } catch {
+            // Ignore malformed event data
+          }
+        });
+      }
+
+      source.onerror = () => {
+        setConnected(false);
+        source?.close();
+        source = null;
+
+        // Don't retry if job is done or cancelled
+        if (isCancelled) return;
+
+        if (retryCount < MAX_RETRIES) {
+          const delay = getBackoffDelay(retryCount);
+          retryCount += 1;
+          retryTimeout = setTimeout(connectSSE, delay);
+        }
+      };
+    }
+
+    connectSSE();
 
     return () => {
-      source.close();
+      isCancelled = true;
+      if (retryTimeout !== null) {
+        clearTimeout(retryTimeout);
+      }
+      source?.close();
     };
   }, [jobId, isDemo, includeCodegen, handleEvent]);
 
