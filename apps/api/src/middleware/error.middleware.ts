@@ -29,6 +29,7 @@ export function errorMiddleware(
   console.error("[api:error]", {
     message: rawMessage,
     ...(stack ? { stack } : {}),
+    requestId: _req.headers["x-request-id"] ?? "unknown",
     timestamp: new Date().toISOString(),
   });
 

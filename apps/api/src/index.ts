@@ -4,10 +4,14 @@ import helmet from "helmet";
 import { router } from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { generalLimiter } from "./middleware/rate-limit.middleware.js";
+import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
 
 const app: Express = express();
 const PORT = process.env["PORT"] ?? "3001";
 const IS_PRODUCTION = process.env["NODE_ENV"] === "production";
+
+// Assign unique request ID for log correlation (first in chain)
+app.use(requestIdMiddleware);
 
 // Security headers — includes HSTS for HTTPS enforcement in production
 app.use(
@@ -48,7 +52,7 @@ app.use((req, res, next) => {
   }
 
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Request-Id");
 
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
