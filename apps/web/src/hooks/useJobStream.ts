@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { runDemoSimulation } from "../lib/mock-data";
 import { sanitizeStreamContent, sanitizeEventData } from "../lib/sanitize";
 
@@ -61,6 +61,7 @@ export function useJobStream(
   const [jobStatus, setJobStatus] = useState<JobStreamState["jobStatus"]>("queued");
   const [jobError, setJobError] = useState<string | undefined>();
   const [connected, setConnected] = useState(false);
+  const jobDoneRef = useRef(false);
 
   const handleEvent = useCallback((data: Record<string, unknown>) => {
     const type = data["type"] as string;
@@ -160,13 +161,17 @@ export function useJobStream(
       }
 
       case "job_completed":
+        jobDoneRef.current = true;
         setJobStatus("completed");
+        setConnected(false);
         setAgents((prev) => prev.filter((agent) => agent.status !== "waiting"));
         break;
 
       case "job_failed": {
         const payload = data["payload"] as Record<string, unknown>;
+        jobDoneRef.current = true;
         setJobStatus("failed");
+        setConnected(false);
         setJobError(payload["error"] as string);
         break;
       }
@@ -195,9 +200,12 @@ export function useJobStream(
   useEffect(() => {
     if (!jobId || isDemo) return;
 
-    setAgents(createInitialAgents(includeCodegen));
-    setJobStatus("queued");
-    setJobError(undefined);
+    // Reset only if starting fresh (not already done from a previous mount)
+    if (!jobDoneRef.current) {
+      setAgents(createInitialAgents(includeCodegen));
+      setJobStatus("queued");
+      setJobError(undefined);
+    }
 
     let source: EventSource | null = null;
     let retryCount = 0;
@@ -216,12 +224,14 @@ export function useJobStream(
     }
 
     function connectSSE() {
-      if (isCancelled) return;
+      if (isCancelled || jobDoneRef.current) return;
 
       source = new EventSource(`/api/stream/${jobId}`);
 
       source.onopen = () => {
-        setConnected(true);
+        if (!jobDoneRef.current) {
+          setConnected(true);
+        }
         retryCount = 0; // Reset on successful connection
       };
 
@@ -240,12 +250,13 @@ export function useJobStream(
       }
 
       source.onerror = () => {
-        setConnected(false);
         source?.close();
         source = null;
 
         // Don't retry if job is done or cancelled
-        if (isCancelled) return;
+        if (isCancelled || jobDoneRef.current) return;
+
+        setConnected(false);
 
         if (retryCount < MAX_RETRIES) {
           const delay = getBackoffDelay(retryCount);

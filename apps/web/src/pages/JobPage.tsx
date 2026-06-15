@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button, Spinner, useToast } from "@stackforge/ui";
 import { AgentTimeline } from "../components/AgentTimeline";
@@ -81,6 +81,7 @@ export function JobPage() {
   const { addToast } = useToast();
   const stream = useJobStream(jobId, isDemo, includeCodegen);
   const [job, setJob] = useState<JobResponse | null>(null);
+  const completionToastShown = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [featureRequest, setFeatureRequest] = useState("");
   const [updateFlow, setUpdateFlow] = useState<UpdateFlowState>({
@@ -116,7 +117,9 @@ export function JobPage() {
   // Re-fetch when job completes to get blueprint
   useEffect(() => {
     if (!jobId || stream.jobStatus !== "completed") return;
-    
+    if (completionToastShown.current) return;
+    completionToastShown.current = true;
+
     if (isDemo) {
       setJob((prev) => prev ? { ...prev, status: "completed", blueprint: MOCK_BLUEPRINT } : null);
       addToast("success", "Demo blueprint generation complete!");
