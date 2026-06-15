@@ -152,7 +152,7 @@ export function BlueprintView({ blueprint }: { blueprint: Blueprint }) {
             <Button variant="secondary" loading={isZipLoading} onClick={handleZipDownload}>
               Download ZIP
             </Button>
-            <Button variant="ghost" onClick={handleDownload}>
+            <Button variant="secondary" onClick={handleDownload}>
               Download JSON
             </Button>
           </div>
