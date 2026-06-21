@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, it } from "bun:test";
 import type { LLMProvider, ProviderCallInput, ProviderCallOutput } from "../src/provider/provider.interface.js";
-import { runOrchestrator } from "../src/orchestrator/orchestrator.service.js";
+import { runOrchestrator } from "../src/orchestrator/index.js";
 import { AgentCache } from "../src/cache/agent.cache.js";
 import type { SSEEvent } from "@stackforge/shared";
 import {

@@ -41,5 +41,5 @@ export { runApiAgent } from "./agents/api.agent.js";
 export { runFrontendAgent } from "./agents/frontend.agent.js";
 export { runDevopsAgent } from "./agents/devops.agent.js";
 // orchestrator
-export { runOrchestrator } from "./orchestrator/orchestrator.service.js";
-export type { OrchestratorOptions } from "./orchestrator/orchestrator.service.js";
+export { runOrchestrator } from "./orchestrator/index.js";
+export type { OrchestratorOptions } from "./orchestrator/index.js";
