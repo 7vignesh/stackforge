@@ -1,144 +1,130 @@
-# StackForge 🏗️
+# StackForge — Loop Engine
 
-**StackForge** is an AI agent orchestration system designed for full-stack scaffolding. 
-Users enter a product idea in plain English, and the system coordinates multiple specialized subagents to generate a structured, full-stack project blueprint (and eventually real code).
+A **loop engine for AI coding agents** that enforces structured progress through goals, milestones, and verifiable gates. Instead of letting an agent free-wheel, StackForge ensures every claim of "done" is backed by real evidence — commands that exit 0, not sentences that sound right.
 
-Currently, this repository contains the **Core Backend & Orchestration Layer** (v1), which features a clean provider abstraction, strict Zod validation, and real-time Server-Sent Events (SSE) streaming for agent progress.
+## Architecture
 
-The backend runs on **real OpenRouter provider calls** with per-agent token optimization (input compression, output caps, and budget guardrails).
+```
+┌─────────────────────────────────────────────────┐
+│                  MCP Server                      │
+│            (apps/mcp — 14 tools)                 │
+├─────────────────────────────────────────────────┤
+│                 Loop Core                        │
+│         (packages/loop-core — engine)            │
+│                                                  │
+│  ┌──────────┐  ┌────────┐  ┌────────────────┐  │
+│  │  State   │  │ Gates  │  │    Memory      │  │
+│  │  Store   │  │ Runner │  │  (decisions,   │  │
+│  │ (SQLite) │  │        │  │  facts, etc.)  │  │
+│  └──────────┘  └────────┘  └────────────────┘  │
+└─────────────────────────────────────────────────┘
+```
 
----
+### Packages
 
-## 🚀 Tech Stack & Tools Needed
+| Path | Description |
+|------|-------------|
+| `packages/loop-core` | The engine: state management, gate execution, memory, and dependency rules |
+| `apps/mcp` | MCP server exposing the engine as tools to any AI coding agent |
 
-Before you begin, ensure you have the following installed on your machine:
+## Core Concepts
 
-- **[Bun](https://bun.sh/)** (v1.3+): JavaScript runtime, package manager, and test runner.
-- **[Turborepo](https://turbo.build/)**: High-performance build system for TypeScript monorepos.
-- **Node.js** (v22+): For broad compatibility, though Bun executes the backend.
-- **Git**: For version control.
+### Loops
+A loop represents a single goal being worked through. It progresses through milestones and can be active, paused, done, failed, or abandoned.
 
-**Monorepo Details:**
-- **Language**: TypeScript (Strict Mode)
-- **Backend Framework**: Express
-- **Realtime**: Server-Sent Events (SSE)
-- **Validation & Modeling**: Zod 
+### Milestones
+Discrete checkpoints within a loop. Each milestone must be validated by gates before it can be marked done. Milestones support dependency ordering — a milestone can declare it depends on others.
 
----
+### Gates
+Shell commands that produce facts. A gate is a command (e.g. `bun test`, `tsc --noEmit`) with a timeout and a pass/fail condition. If it exits 0, it passes. Gates are defined in `stackforge.json` — never accepted from MCP callers — ensuring a prompt-injected agent cannot gain arbitrary code execution.
 
-## 🛠️ Installation & Setup
+### Memory
+Persistent recall across sessions. Memories are categorized as:
+- **Decision** — a choice that constrains future work
+- **Fact** — a durable truth about the project
+- **Pattern** — a reusable approach
+- **Built** — a capability that exists and must not be rebuilt
+- **Gotcha** — a trap discovered the hard way
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/7vignesh/stackforge.git
-   cd stackforge
-   ```
+### Existence Pre-flight
+Before starting work on a milestone, the engine checks whether it's already built (fully, partially, or not at all). This prevents an agent from rebuilding something it shipped three sessions ago and has since forgotten.
 
-2. **Install dependencies:**
-   Bun handles all workspace linking seamlessly:
-   ```bash
-   bun install
-   ```
-   *(This will also set up Husky pre-commit hooks automatically).*
+## Configuration
 
-3. **Start the API Server (Development Mode):**
-   ```bash
-   cd apps/api
-   bun run dev
-   ```
-   *The server will start on http://localhost:3001.*
+Create a `stackforge.json` in your project root:
 
-4. **Run the Interactive Demo:**
-   To see the AI orchestration pipeline stream its results in real-time, open a **second terminal** and run:
-   ```bash
-   bun run scripts/demo.ts
-   ```
-   *You can also pass a custom prompt:*
-   ```bash
-   bun run scripts/demo.ts --prompt "Build a CRM for real estate agents with PostgreSQL"
-   ```
+```json
+{
+  "gates": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": {
+      "command": "eslint .",
+      "blocking": false,
+      "order": 50
+    }
+  }
+}
+```
 
----
+Gates support shorthand (`"name": "command"`) or full config with `timeoutMs`, `order`, and `blocking` options.
 
-## 🧪 Testing
+## MCP Tools
 
-The repository uses Bun's incredibly fast, built-in native test runner (`bun:test`).
+The MCP server exposes 14 tools for agent integration:
 
-**Run the API Integration Tests:**
+| Tool | Purpose |
+|------|---------|
+| `loop_start` | Begin a new goal loop |
+| `loop_plan` | Define milestones for the active loop |
+| `loop_status` | Get current loop state |
+| `loop_resume` | Resume a paused loop |
+| `loop_preflight` | Run existence check on a milestone |
+| `loop_checkpoint` | Record an iteration's progress |
+| `loop_gate` | Run a specific gate by name |
+| `loop_validate` | Run all gates for the current milestone |
+| `loop_done` | Mark a milestone as complete (requires passing gates) |
+| `loop_skip` | Skip a milestone with a reason |
+| `loop_remember` | Store a memory entry |
+| `loop_recall` | Search memories by query |
+| `loop_history` | View iteration history |
+| `loop_pause` | Pause the active loop |
+
+## Getting Started
+
+### Prerequisites
+- [Bun](https://bun.sh/) >= 1.3.0
+
+### Install dependencies
 ```bash
-cd apps/api
+bun install
+```
+
+### Run loop-core tests
+```bash
+cd packages/loop-core
 bun test
 ```
 
-**Run Tests Across the Entire Monorepo:**
+### Start MCP server (development)
 ```bash
-bun run test
-```
-*Turborepo will execute the `"test"` script in every package and cache the results.*
-
-### Pre-commit Hooks (Husky)
-To ensure the repository remains stable, a git pre-commit hook is fully configured. 
-Whenever you run `git commit`, the system automatically runs:
-- `turbo run typecheck`: Type-checks all packages without emitting files (`tsc --noEmit`).
-- `turbo run test`: Runs the test suites.
-
-If any of these fail, the commit is aborted.
-
-
-
-### Monorepo Structure & Ownership
-
-```text
-apps/
-  api/          # Primary Backend (Express + Orchestrator bridge)
-  web/          # Frontend Web App (React/Next.js stub) 
-
-packages/
-   agents/       # Core Orchestration, 6 Subagents, OpenRouter provider, token optimizer
-  shared/       # Zod Schemas, Constant Enums, and TS Contract Types
-  ui/           # Reusable UI primitives stub
-  config/       # ESLint/TSConfig stubs
+cd apps/mcp
+bun run dev
 ```
 
----
-
-## ⚙️ OpenRouter Runtime Configuration
-
-Set these variables in `apps/api/.env`:
-
+### Type-check
 ```bash
-STACKFORGE_PROVIDER=openrouter
-OPENROUTER_API_KEY=your_key_here
-OPENROUTER_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
-OPENROUTER_APP_NAME=stackforge-api
-OPENROUTER_APP_URL=http://localhost:3001
+bun run typecheck
 ```
 
-`STACKFORGE_PROVIDER` supports:
-- `openrouter`: forces real LLM execution (requires `OPENROUTER_API_KEY`)
-- `mock`: forces deterministic offline agent responses
-- omitted/`auto`: uses `openrouter` when API key is present, otherwise `mock`
+## Design Principles
 
-Runtime/provider health is exposed at:
-- `GET /api/runtime`
+1. **The engine contains no LLM calls.** It persists state, runs commands, and enforces rules. Intelligence comes from the agent above it.
+2. **Facts over claims.** A milestone is not done until a gate proves it.
+3. **Security boundary.** Gate commands come from `stackforge.json` in version control, never from MCP callers.
+4. **Survive restarts.** All state is plain data persisted to SQLite. A process exit loses nothing.
+5. **Same logic everywhere.** CLI and MCP server share `loop-core` — no duplicated decisions.
 
----
+## License
 
-## 📉 Token Tuning Guide
-
-Per-agent tuning lives in `packages/agents/src/config/agent.configs.ts`.
-
-- `maxInputTokens`: hard input cap used by optimizer compression.
-- `maxOutputTokens`: maximum completion tokens requested from provider.
-- `minOutputTokens`: minimum output budget required after compression.
-- `tokenBudget`: total budget target used to derive dynamic output caps.
-- `compressionLevel`: default compression aggressiveness (`low` / `medium` / `high`).
-- `budgetOverflowRetries`: number of extra compression passes before fail-fast.
-
-**Suggested workflow:**
-1. Run 3–5 representative prompts.
-2. Inspect per-agent SSE `agent_completed` telemetry.
-3. Lower `maxInputTokens` or raise `compressionLevel` for agents with high `inputTokens`.
-4. Lower `maxOutputTokens` for agents with consistently low `outputTokens`.
-5. Raise `minOutputTokens` only if quality drops from over-compression.
-6. Adjust `tokenBudget` to set overall cost/quality tradeoff for the entire orchestration.
+Private — not published.
