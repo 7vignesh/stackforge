@@ -1,4 +1,4 @@
-import type { AgentName, SSEEvent } from "@stackforge/shared";
+import type { AgentName, AgentConfig, SSEEvent } from "@stackforge/shared";
 import { AGENT_CONFIGS } from "../config/agent.configs.js";
 import type { AgentCache } from "../cache/agent.cache.js";
 import type { LLMProvider, ProviderCallOutput } from "../provider/provider.interface.js";
@@ -357,7 +357,28 @@ export class WorkflowEngine {
         }
       }
 
-      validateStepOutput(step, primary.output);
+      try {
+        validateStepOutput(step, primary.output);
+      } catch (validationError) {
+        // One self-correction pass: weak/free models frequently emit malformed
+        // or incomplete JSON. Rather than fail the whole job, show the model its
+        // own output plus the validation error and ask for a corrected version.
+        const repaired = await this.attemptRepair(
+          workflow,
+          step,
+          config,
+          userPrompt,
+          primary.output,
+          validationError instanceof Error ? validationError.message : String(validationError),
+        );
+        primary = {
+          ...primary,
+          output: repaired.output,
+          tokensUsed: primary.tokensUsed + repaired.tokensUsed,
+        };
+        this.options.cache.set(primaryCacheKey, primary.output);
+        validateStepOutput(step, primary.output);
+      }
 
       // Convert raw code string to structured format for codegen
       let normalizedOutput = primary.output;
@@ -424,6 +445,52 @@ export class WorkflowEngine {
       this.options.emit(agentFailed(this.options.jobId, step.agent, message));
       throw error;
     }
+  }
+
+  private async attemptRepair(
+    workflow: WorkflowDefinition,
+    step: WorkflowStep,
+    config: AgentConfig,
+    originalUserPrompt: string,
+    badOutput: unknown,
+    validationError: string,
+  ): Promise<{ output: unknown; tokensUsed: number }> {
+    const repairPrompt = [
+      "Your previous response for this workflow step was invalid and must be corrected.",
+      "",
+      `Validation error: ${validationError}`,
+      "",
+      "Your previous (invalid) output was:",
+      serializeOutput(badOutput),
+      "",
+      "Original step instructions:",
+      originalUserPrompt,
+      "",
+      "Return ONLY the corrected, strict JSON object for this step. No markdown, no code fences, no commentary.",
+    ].join("\n");
+
+    const response = await this.options.provider.call({
+      agentName: step.agent,
+      input: {
+        workflowId: workflow.id,
+        stepId: step.id,
+        repair: true,
+      },
+      options: {
+        systemPrompt:
+          "You repair invalid workflow-step output. Return strict JSON object output only that satisfies the stated schema.",
+        userPrompt: repairPrompt,
+        model: config.model,
+        maxInputTokens: config.maxInputTokens,
+        maxOutputTokens: config.maxOutputTokens,
+        temperature: 0,
+      },
+    });
+
+    return {
+      output: response.output,
+      tokensUsed: response.tokensUsed,
+    };
   }
 
   private async compressStepOutput(

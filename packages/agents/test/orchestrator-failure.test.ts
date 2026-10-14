@@ -148,6 +148,38 @@ class CompressionFailureProvider extends FixedTokenProvider {
   }
 }
 
+/**
+ * Returns an invalid planner payload on the first attempt, then a valid payload
+ * once the engine issues a repair call (flagged via `repair: true` in input).
+ * Exercises the self-correction retry path in the workflow engine.
+ */
+class RepairablePlannerProvider extends FixedTokenProvider {
+  repairCalls = 0;
+
+  override async call(input: ProviderCallInput): Promise<ProviderCallOutput> {
+    const payload = input.input as Record<string, unknown>;
+
+    if (input.agentName === "planner" && "compressionTarget" in payload === false) {
+      if (payload["repair"] === true) {
+        this.repairCalls += 1;
+        return super.call(input);
+      }
+
+      // First (pre-repair) planner attempt: deliberately invalid shape.
+      return {
+        output: { bad: true },
+        tokensUsed: 10,
+        durationMs: 1,
+        inputTokens: 5,
+        outputTokens: 5,
+        model: input.options.model,
+      };
+    }
+
+    return super.call(input);
+  }
+}
+
 describe("Orchestrator failure propagation", () => {
   it("emits agent_failed and rejects when agent output schema validation fails", async () => {
     const events: SSEEvent[] = [];
@@ -227,5 +259,31 @@ describe("Orchestrator failure propagation", () => {
     expect(blueprint.routePlan.length).toBeGreaterThan(0);
     expect(blueprint.reviewerNotes.length).toBeGreaterThan(0);
     expect((blueprint.generatedSourceFiles?.length ?? 0) > 0).toBe(true);
+  });
+
+  it("recovers from invalid agent output via a single repair pass", async () => {
+    const events: SSEEvent[] = [];
+    const provider = new RepairablePlannerProvider();
+
+    const blueprint = await runOrchestrator({
+      jobId: crypto.randomUUID(),
+      prompt: "Build a task management platform",
+      projectName: "taskflow",
+      execution: {
+        enableCodeGeneration: false,
+      },
+      emit: (event) => events.push(event),
+      provider,
+      cache: new AgentCache(),
+    });
+
+    // Repair was triggered exactly once and the job still completed.
+    expect(provider.repairCalls).toBe(1);
+    expect(blueprint.projectName.length).toBeGreaterThan(0);
+    expect(blueprint.routePlan.length).toBeGreaterThan(0);
+
+    // No agent_failed should be emitted since the repair succeeded.
+    const failed = events.find((event) => event.type === "agent_failed");
+    expect(failed).toBeUndefined();
   });
 });
